@@ -9,8 +9,8 @@
 int times = 0;
 #define DATA_SIZE (1024)
 
-extern int __renderer_width;
-extern int __renderer_height;
+//extern int __renderer_width;
+//extern int __renderer_height;
 
 int err;                        // error code returned from api calls
 cl_float3 data[DATA_SIZE];      // original data set give to device
@@ -21,8 +21,6 @@ int i;
 
 char *__kernel_name;
 #define __KERNEL_NAME_SIZE__ (256)
-
-size_t __rtcl_dimension;
 
 cl_float3 camera_pos;
 cl_float3 camera_dir;
@@ -39,10 +37,10 @@ cl_mem d_scene_buffer;
 int d_scene_size = 0;
 cl_int scene_size;
 
-struct rtcl {
-    char kernel_name[__KERNEL_NAME_SIZE__];
-    struct camera camera;
-} rtcl;
+/////////struct rtcl {
+/////////    char kernel_name[__KERNEL_NAME_SIZE__];
+/////////    struct camera camera;
+/////////} rtcl;
 
 //struct rtcl rtcl;
 
@@ -105,7 +103,7 @@ void rtcl_copy_scene_to_device()
 //    llist_append(llist, compile_sphere(&sphere));
 //    llist_append(llist, compile_sphere(&sphere2));
 //    llist_append(llist, compile_sphere(&light));
-    llist_append(llist, compile_plane(&plane));
+    //llist_append(llist, compile_plane(&plane));
 
 
     cl_float16 *h_scene_buffer = (cl_float16 *)malloc(sizeof(cl_float16)*llist->size*2); // multiply by 2 because each object is 2
@@ -124,13 +122,13 @@ void rtcl_copy_scene_to_device()
     }
 
     d_scene_size = llist->size*2;
-    d_scene_buffer = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float16) * llist->size * 2, NULL, NULL);
+    d_scene_buffer = clCreateBuffer(rtcl.context, CL_MEM_READ_ONLY, sizeof(cl_float16) * llist->size * 2, NULL, NULL);
     if(!d_scene_buffer) {
         printf("Error: Failed to allocate scene buffer!\n");
         exit(1);
     }
 
-    err = clEnqueueWriteBuffer(commands, d_scene_buffer, CL_TRUE, 0, sizeof(cl_float16) * llist->size * 2, h_scene_buffer, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(rtcl.commands, d_scene_buffer, CL_TRUE, 0, sizeof(cl_float16) * llist->size * 2, h_scene_buffer, 0, NULL, NULL);
     if(err != CL_SUCCESS) {
         printf("Error: Failed to write scene buffer to device! %d\n", err);
         exit(1);
@@ -146,26 +144,26 @@ void rtcl_generate_rays_kernel_init()
     rtcl_select_kernel("generate_rays");
     
     // create buffers
-    d_output_rays_position = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_float3) * __rtcl_num_pixels, NULL, NULL);
+    d_output_rays_position = clCreateBuffer(rtcl.context, CL_MEM_WRITE_ONLY, sizeof(cl_float3) * __rtcl_num_pixels, NULL, NULL);
     if(!d_output_rays_position) {
         printf("Error: Failed to allocate device memory!\n");
         exit(1);
     }
 
-    d_output_rays_direction = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_float3) * __rtcl_num_pixels, NULL, NULL);
+    d_output_rays_direction = clCreateBuffer(rtcl.context, CL_MEM_WRITE_ONLY, sizeof(cl_float3) * __rtcl_num_pixels, NULL, NULL);
     if(!d_output_rays_direction) {
         printf("Error: Failed to allocate device memory!\n");
         exit(1);
     }
 
     // write buffers to device
-    err = clEnqueueWriteBuffer(commands, d_output_rays_position, CL_TRUE, 0, sizeof(cl_float3) * __rtcl_num_pixels, h_output_rays_position, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(rtcl.commands, d_output_rays_position, CL_TRUE, 0, sizeof(cl_float3) * __rtcl_num_pixels, h_output_rays_position, 0, NULL, NULL);
     if(err != CL_SUCCESS) {
         printf("Error: Failed to write to source array! %d\n", err);
         exit(1);
     }
 
-    err = clEnqueueWriteBuffer(commands, d_output_rays_direction, CL_TRUE, 0, sizeof(cl_float3) * __rtcl_num_pixels, h_output_rays_direction, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(rtcl.commands, d_output_rays_direction, CL_TRUE, 0, sizeof(cl_float3) * __rtcl_num_pixels, h_output_rays_direction, 0, NULL, NULL);
     if(err != CL_SUCCESS) {
         printf("Error: Failed to write to source array! %d\n", err);
         exit(1);
@@ -180,20 +178,20 @@ void rtcl_generate_rays_kernel_init()
     rtcl.camera.direction.s[v_Y] = 0.0f;
     rtcl.camera.direction.s[v_Z] = -1.0f;
 
-    rtcl.camera.screen_width = __renderer_width;
-    rtcl.camera.screen_height = __renderer_height;
+    rtcl.camera.screen_width = rtcl.renderer->width;
+    rtcl.camera.screen_height = rtcl.renderer->height;
     rtcl.camera.focal_length = 60.0;
 
     // Set the arguments to our compute kernel
     err = 0;
-    err |= clSetKernelArg(kernel, 0, sizeof(rtcl.camera.position), &rtcl.camera.position);
-    err |= clSetKernelArg(kernel, 1, sizeof(rtcl.camera.direction), &rtcl.camera.direction);
-    err |= clSetKernelArg(kernel, 2, sizeof(rtcl.camera.focal_length), &rtcl.camera.focal_length);
-    err |= clSetKernelArg(kernel, 3, sizeof(rtcl.camera.screen_width), &rtcl.camera.screen_width);
-    err |= clSetKernelArg(kernel, 4, sizeof(rtcl.camera.screen_height), &rtcl.camera.screen_height);
-    err |= clSetKernelArg(kernel, 5, sizeof(cl_mem), &d_output_rays_position);
-    err |= clSetKernelArg(kernel, 6, sizeof(cl_mem), &d_output_rays_direction);
-    err |= clSetKernelArg(kernel, 7, sizeof(unsigned int), &__rtcl_num_pixels);
+    err |= clSetKernelArg(rtcl.kernel, 0, sizeof(rtcl.camera.position), &rtcl.camera.position);
+    err |= clSetKernelArg(rtcl.kernel, 1, sizeof(rtcl.camera.direction), &rtcl.camera.direction);
+    err |= clSetKernelArg(rtcl.kernel, 2, sizeof(rtcl.camera.focal_length), &rtcl.camera.focal_length);
+    err |= clSetKernelArg(rtcl.kernel, 3, sizeof(rtcl.camera.screen_width), &rtcl.camera.screen_width);
+    err |= clSetKernelArg(rtcl.kernel, 4, sizeof(rtcl.camera.screen_height), &rtcl.camera.screen_height);
+    err |= clSetKernelArg(rtcl.kernel, 5, sizeof(cl_mem), &d_output_rays_position);
+    err |= clSetKernelArg(rtcl.kernel, 6, sizeof(cl_mem), &d_output_rays_direction);
+    err |= clSetKernelArg(rtcl.kernel, 7, sizeof(unsigned int), &__rtcl_num_pixels);
     if(err != CL_SUCCESS) {
         printf( "Error: Failed to set kernel arguments! %d\n", err);
         exit(1);
@@ -203,12 +201,13 @@ void rtcl_generate_rays_kernel_init()
 void rtcl_read_rays_from_device(struct ray **rays, int *size)
 {
     struct ray *tmp_rays = (struct ray *)malloc(sizeof(struct ray) * __rtcl_num_pixels);
-    cl_float3 ray_pos[__rtcl_num_pixels];
-    cl_float3 ray_dir[__rtcl_num_pixels];
+    cl_float3 *ray_pos = (cl_float3 *)malloc(sizeof(cl_float3) * __rtcl_num_pixels);
+    cl_float3 *ray_dir = (cl_float3 *)malloc(sizeof(cl_float3) * __rtcl_num_pixels);
+    //cl_float3 ray_dir[__rtcl_num_pixels];
 
     // copy rays on device to host
-    err = clEnqueueReadBuffer(commands, d_output_rays_position, CL_TRUE, 0, sizeof(cl_float3) * __rtcl_num_pixels, ray_pos, 0, NULL, NULL);
-    err = clEnqueueReadBuffer(commands, d_output_rays_direction, CL_TRUE, 0, sizeof(cl_float3) * __rtcl_num_pixels, ray_dir, 0, NULL, NULL);
+    err = clEnqueueReadBuffer(rtcl.commands, d_output_rays_position, CL_TRUE, 0, sizeof(cl_float3) * __rtcl_num_pixels, ray_pos, 0, NULL, NULL);
+    err = clEnqueueReadBuffer(rtcl.commands, d_output_rays_direction, CL_TRUE, 0, sizeof(cl_float3) * __rtcl_num_pixels, ray_dir, 0, NULL, NULL);
 
     for(int i = 0; i  < __rtcl_num_pixels; i++) {
         tmp_rays[i].position.s[v_X] = ray_pos[i].s[v_X];
@@ -221,6 +220,8 @@ void rtcl_read_rays_from_device(struct ray **rays, int *size)
 
     *rays = tmp_rays;
     *size = __rtcl_num_pixels;
+    free(ray_pos);
+    free(ray_dir);
 }
 
 void rtcl_trace_rays_kernel_init(const struct ray *rays, int num_rays, int rays_per_pixel)
@@ -229,9 +230,9 @@ void rtcl_trace_rays_kernel_init(const struct ray *rays, int num_rays, int rays_
 
     rtcl_select_kernel("trace_rays");
 
-    cl_float3 h_ray_pos[num_rays];
-    cl_float3 h_ray_dir[num_rays];
-    cl_float4 h_pixel_board[num_pixels];
+    cl_float3 *h_ray_pos = (cl_float3 *)malloc(sizeof(cl_float3) * num_rays);
+    cl_float3 *h_ray_dir = (cl_float3 *)malloc(sizeof(cl_float3) * num_rays);
+    cl_float4 *h_pixel_board = (cl_float4 *)malloc(sizeof(cl_float4) * num_pixels);
 
     for(int i = 0; i < num_rays; i++) {
         h_ray_pos[i].s[v_X] = rays[i].position.s[v_X];
@@ -253,57 +254,61 @@ void rtcl_trace_rays_kernel_init(const struct ray *rays, int num_rays, int rays_
     cl_mem d_ray_dir;
 
     // prepare buffers
-    d_ray_pos = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3) * num_rays, NULL, NULL);
+    d_ray_pos = clCreateBuffer(rtcl.context, CL_MEM_READ_ONLY, sizeof(cl_float3) * num_rays, NULL, NULL);
     if(!d_ray_pos) {
         printf("Error: Failed to allocate device memory!\n");
         exit(1);
     }
 
-    d_ray_dir = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3) * num_rays, NULL, NULL);
+    d_ray_dir = clCreateBuffer(rtcl.context, CL_MEM_READ_ONLY, sizeof(cl_float3) * num_rays, NULL, NULL);
     if(!d_ray_dir) {
         printf("Error: Failed to allocate device memory!\n");
         exit(1);
     }
 
-    d_pixel_board = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_float4) * num_pixels, NULL, NULL);
+    d_pixel_board = clCreateBuffer(rtcl.context, CL_MEM_WRITE_ONLY, sizeof(cl_float4) * num_pixels, NULL, NULL);
     if(!d_pixel_board) {
         printf("Error: Failed to allocate device memory!\n");
         exit(1);
     }
 
     // write buffers to device
-    err = clEnqueueWriteBuffer(commands, d_ray_pos, CL_TRUE, 0, sizeof(cl_float3) * num_rays, h_ray_pos, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(rtcl.commands, d_ray_pos, CL_TRUE, 0, sizeof(cl_float3) * num_rays, h_ray_pos, 0, NULL, NULL);
     if(err != CL_SUCCESS) {
         printf("Error: Failed to write to source array! %d\n", err);
         exit(1);
     }
 
-    err = clEnqueueWriteBuffer(commands, d_ray_dir, CL_TRUE, 0, sizeof(cl_float3) * num_rays, h_ray_dir, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(rtcl.commands, d_ray_dir, CL_TRUE, 0, sizeof(cl_float3) * num_rays, h_ray_dir, 0, NULL, NULL);
     if(err != CL_SUCCESS) {
         printf("Error: Failed to write to source array! %d\n", err);
         exit(1);
     }
 
-    err = clEnqueueWriteBuffer(commands, d_pixel_board, CL_TRUE, 0, sizeof(cl_float3) * num_pixels, h_pixel_board, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(rtcl.commands, d_pixel_board, CL_TRUE, 0, sizeof(cl_float3) * num_pixels, h_pixel_board, 0, NULL, NULL);
     if(err != CL_SUCCESS) {
         printf("Error: Failed to write to source array! %d\n", err);
         exit(1);
     }
 
     int err = 0;
-    err |= clSetKernelArg(kernel, 0, sizeof(d_scene_buffer), &d_scene_buffer);
-    err |= clSetKernelArg(kernel, 1, sizeof(d_scene_size), &d_scene_size);
-    err |= clSetKernelArg(kernel, 2, sizeof(d_ray_pos), &d_ray_pos);
-    err |= clSetKernelArg(kernel, 3, sizeof(d_ray_dir), &d_ray_dir);
-    err |= clSetKernelArg(kernel, 4, sizeof(rays_per_pixel), &rays_per_pixel);
-    err |= clSetKernelArg(kernel, 5, sizeof(d_pixel_board), &d_pixel_board);
-    err |= clSetKernelArg(kernel, 6, sizeof(rtcl.camera.screen_width), &rtcl.camera.screen_width);
-    err |= clSetKernelArg(kernel, 7, sizeof(rtcl.camera.screen_height), &rtcl.camera.screen_height);
-    err |= clSetKernelArg(kernel, 8, sizeof(unsigned int), &__rtcl_num_pixels);
+    err |= clSetKernelArg(rtcl.kernel, 0, sizeof(d_scene_buffer), &d_scene_buffer);
+    err |= clSetKernelArg(rtcl.kernel, 1, sizeof(d_scene_size), &d_scene_size);
+    err |= clSetKernelArg(rtcl.kernel, 2, sizeof(d_ray_pos), &d_ray_pos);
+    err |= clSetKernelArg(rtcl.kernel, 3, sizeof(d_ray_dir), &d_ray_dir);
+    err |= clSetKernelArg(rtcl.kernel, 4, sizeof(rays_per_pixel), &rays_per_pixel);
+    err |= clSetKernelArg(rtcl.kernel, 5, sizeof(d_pixel_board), &d_pixel_board);
+    err |= clSetKernelArg(rtcl.kernel, 6, sizeof(rtcl.camera.screen_width), &rtcl.camera.screen_width);
+    err |= clSetKernelArg(rtcl.kernel, 7, sizeof(rtcl.camera.screen_height), &rtcl.camera.screen_height);
+    err |= clSetKernelArg(rtcl.kernel, 8, sizeof(unsigned int), &__rtcl_num_pixels);
     if(err != CL_SUCCESS) {
         printf( "Error: Failed to set kernel arguments! %d\n", err);
         exit(1);
     }
+
+    free(h_ray_pos);
+    free(h_ray_dir);
+    free(h_pixel_board);
 }
 
 void rtcl_update_scene()
@@ -319,9 +324,9 @@ void rtcl_read_pixel_board(struct pixel **pixel_board)
     // cl_float3 ray_pos[__rtcl_num_pixels];
     // cl_float3 ray_dir[__rtcl_num_pixels];
 
-    cl_float4 raw_pixels[__rtcl_num_pixels];
+    cl_float4 *raw_pixels = (cl_float4 *)malloc(sizeof(cl_float4) * __rtcl_num_pixels);
     // copy rays on device to host
-    err = clEnqueueReadBuffer(commands, d_pixel_board, CL_TRUE, 0, sizeof(cl_float4) * __rtcl_num_pixels, raw_pixels, 0, NULL, NULL);
+    err = clEnqueueReadBuffer(rtcl.commands, d_pixel_board, CL_TRUE, 0, sizeof(cl_float4) * __rtcl_num_pixels, raw_pixels, 0, NULL, NULL);
 
     for(int i = 0; i  < __rtcl_num_pixels; i++) {
         pixels[i].color.s[c_R] = raw_pixels[i].s[c_R];
@@ -337,17 +342,18 @@ void rtcl_read_pixel_board(struct pixel **pixel_board)
     }
 
     *pixel_board = pixels;
-
+    free(raw_pixels);
 }
 
-void rtcl_init()
+void rtcl_init(struct renderer *renderer)
 {
+    rtcl.renderer = renderer;
+    rtcl.dimension = 1;
     i = 0;
-    __rtcl_num_pixels = __renderer_width * __renderer_height;
+    __rtcl_num_pixels = rtcl.renderer->width * rtcl.renderer->height;
     __kernel_name = (char *)malloc(__KERNEL_NAME_SIZE__ * sizeof(char));
-    __rtcl_dimension = 1;
-    h_output_rays_position = (cl_float3 *)malloc(__renderer_width * __renderer_height * sizeof(cl_float3));
-    h_output_rays_direction = (cl_float3 *)malloc(__renderer_width * __renderer_height * sizeof(cl_float3));
+    h_output_rays_position = (cl_float3 *)malloc(rtcl.renderer->width * rtcl.renderer->height * sizeof(cl_float3));
+    h_output_rays_direction = (cl_float3 *)malloc(rtcl.renderer->width * rtcl.renderer->height * sizeof(cl_float3));
 
     
     char *source;
@@ -375,22 +381,22 @@ void rtcl_init()
 
     // Connect to a compute device
     int gpu = 1;
-    err = clGetDeviceIDs(NULL, gpu ? CL_DEVICE_TYPE_GPU : CL_DEVICE_TYPE_CPU, 1, &device_id, NULL);
+    err = clGetDeviceIDs(NULL, gpu ? CL_DEVICE_TYPE_GPU : CL_DEVICE_TYPE_CPU, 1, &rtcl.device_id, NULL);
     if(err != CL_SUCCESS) {
         printf( "Error: Failed to create a device group!\n");
         exit(EXIT_FAILURE);
     }
 
     // Create compute context
-    context = clCreateContext(0, 1, &device_id, NULL, NULL, &err);
-    if(!context) {
+    rtcl.context = clCreateContext(0, 1, &rtcl.device_id, NULL, NULL, &err);
+    if(!rtcl.context) {
         printf( "Error: Failed to create a compute context!\n");
         exit(EXIT_FAILURE);
     }
 
     // Create a command queue
-    commands = clCreateCommandQueue(context, device_id, 0, &err);
-    if(!commands) {
+    rtcl.commands = clCreateCommandQueue(rtcl.context, rtcl.device_id, 0, &err);
+    if(!rtcl.commands) {
         printf( "Error: Failed to create a command queue!\n");
         exit(EXIT_FAILURE);
     }
@@ -399,20 +405,20 @@ void rtcl_init()
     read_file(&source, source_filename);
 
     // Create the compute program from the source buffer
-    program = clCreateProgramWithSource(context, 1, (const char **) &source, NULL, &err);
-    if(!program) {
+    rtcl.program = clCreateProgramWithSource(rtcl.context, 1, (const char **) &source, NULL, &err);
+    if(!rtcl.program) {
         printf( "Error: Failed to create compute program!\n");
         exit(EXIT_FAILURE);
     }
 
     // Build the program executable
-    err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+    err = clBuildProgram(rtcl.program, 0, NULL, NULL, NULL, NULL);
     if(err != CL_SUCCESS) {
         size_t len;
         char buffer[2048];
 
         printf( "Error: Failed to bulid program executable!\n");
-        clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
+        clGetProgramBuildInfo(rtcl.program, rtcl.device_id, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
         printf( "%s\n", buffer);
         exit(1);
     }
@@ -426,25 +432,25 @@ void rtcl_run()
     // Execute the kernel over the entire range of our 1d input data set
     // using the maximum number of work group items for this device
     global = __rtcl_num_pixels;
-    err = clEnqueueNDRangeKernel(commands, kernel, __rtcl_dimension, NULL, &global, &local, 0, NULL, NULL);
+    err = clEnqueueNDRangeKernel(rtcl.commands, rtcl.kernel, rtcl.dimension, NULL, &global, 0, 0, NULL, NULL);
     if(err) {
         printf( "Error: Failed to execute kernel! %d\n", err);
         exit(EXIT_FAILURE);
     }
 
     // Wait for the command queue to get serviced before reading back the results
-    clFinish(commands);
+    clFinish(rtcl.commands);
 }
 
 void rtcl_validate()
 {
     return;
 //    cl_float3 results[__rtcl_num_pixels];
-//    err = clEnqueueReadBuffer(commands, d_output_rays, CL_TRUE, 0, sizeof(cl_float3) * __rtcl_num_pixels, results, 0, NULL, NULL); 
+//    err = clEnqueueReadBuffer(rtcl.commands, d_output_rays, CL_TRUE, 0, sizeof(cl_float3) * __rtcl_num_pixels, results, 0, NULL, NULL); 
 //    for(int i = 0; i < __rtcl_num_pixels; i++) {
 //        cl_float3 out = results[i];
-//        int x = i % __renderer_width;
-//        int y = __renderer_height > 1 ? i / __renderer_width : 0;
+//        int x = i % rtcl.renderer->width;
+//        int y = rtcl.renderer->height > 1 ? i / rtcl.renderer->width : 0;
 //        printf("(%02i, %02i) <= ray.pos(%d, %d, %d) + ray.dir(%5.2f, %5.2f, %5.2f)\n",
 //            x, y, 0, 0, 0, out.s[0], out.s[1], out.s[2]);
 //    }
@@ -507,10 +513,10 @@ void rtcl_cleanup()
 
     clReleaseMemObject(d_output_rays_position);
     clReleaseMemObject(d_output_rays_direction);
-    clReleaseProgram(program);
-    clReleaseKernel(kernel);
-    clReleaseCommandQueue(commands);
-    clReleaseContext(context);
+    clReleaseProgram(rtcl.program);
+    clReleaseKernel(rtcl.kernel);
+    clReleaseCommandQueue(rtcl.commands);
+    clReleaseContext(rtcl.context);
 }
 
 void rtcl_select_kernel(const char *kernel_name)
@@ -518,8 +524,8 @@ void rtcl_select_kernel(const char *kernel_name)
     strncpy(__kernel_name, kernel_name, __KERNEL_NAME_SIZE__);
 
     // Create the compute kernel in the program we wish to run
-    kernel = clCreateKernel(program, __kernel_name, &err);
-    if(!kernel || err != CL_SUCCESS) {
+    rtcl.kernel = clCreateKernel(rtcl.program, __kernel_name, &err);
+    if(!rtcl.kernel || err != CL_SUCCESS) {
         printf( "Error: Failed to create compute kernel! %d\n", err);
         exit(1);
     }
@@ -534,31 +540,31 @@ void rtcl_opencl_kernel_workgroup_info()
     cl_ulong pms;
     size_t cwgs[3];
 
-    err = clGetKernelWorkGroupInfo(kernel, device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &wgs, NULL);
+    err = clGetKernelWorkGroupInfo(rtcl.kernel, rtcl.device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &wgs, NULL);
     if(err != CL_SUCCESS) {
         printf( "Error: Failed to retrieve kernel work group info! %d\n", err);
         exit(1);
     }
     local = wgs;
 
-    err = clGetKernelWorkGroupInfo(kernel, device_id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &pwgsm, NULL);
+    err = clGetKernelWorkGroupInfo(rtcl.kernel, rtcl.device_id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &pwgsm, NULL);
     if(err != CL_SUCCESS) {
         printf( "Error: Failed to retrieve kernel preferred work group size multiple! %d\n", err);
         exit(1);
     }
 
-    err = clGetKernelWorkGroupInfo(kernel, device_id, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(cl_ulong), &lms, NULL);
+    err = clGetKernelWorkGroupInfo(rtcl.kernel, rtcl.device_id, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(cl_ulong), &lms, NULL);
     if(err != CL_SUCCESS) {
         printf( "Error: Failed to retrieve kernel local mem size! %d\n", err);
         exit(1);
     }
-    err = clGetKernelWorkGroupInfo(kernel, device_id, CL_KERNEL_PRIVATE_MEM_SIZE, sizeof(cl_ulong), &pms, NULL);
+    err = clGetKernelWorkGroupInfo(rtcl.kernel, rtcl.device_id, CL_KERNEL_PRIVATE_MEM_SIZE, sizeof(cl_ulong), &pms, NULL);
     if(err != CL_SUCCESS) {
         printf( "Error: Failed to retrieve kernel private mem size! %d\n", err);
         exit(1);
     }
 
-    err = clGetKernelWorkGroupInfo(kernel, device_id, CL_KERNEL_COMPILE_WORK_GROUP_SIZE, sizeof(size_t) * 3, &cwgs[0], NULL);
+    err = clGetKernelWorkGroupInfo(rtcl.kernel, rtcl.device_id, CL_KERNEL_COMPILE_WORK_GROUP_SIZE, sizeof(size_t) * 3, &cwgs[0], NULL);
     if(err != CL_SUCCESS) {
         printf( "Error: Failed to retrieve kernel compile work group size! %d\n", err);
         exit(1);

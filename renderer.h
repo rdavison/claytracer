@@ -6,10 +6,15 @@
 #define RENDERER_USE_OPENCL_RENDERER     (1 << 0)
 #define RENDERER_USE_SOFTWARE_RENDERER   (1 << 1)
 
-extern int __renderer_width;
-extern int __renderer_height;
+struct renderer {
+    int width;
+    int height;
+    int pitch;
+    int depth;
+} renderer;
 
 void renderer_init(int recursion_depth, int flags, int width, int height, int pitch);
+void renderer_destroy();
 void renderer_render();
 void renderer_generate_rays(struct ray **rays, int *size);
 void renderer_trace_rays(struct pixel **pixel_board, const struct ray *rays, int num_rays, int rays_per_pixel);

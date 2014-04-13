@@ -43,18 +43,7 @@ struct node_s {
 
 void INFUNC(const char *function)
 {
-//    if(__indent_size <= 0) {
-//        printf("<%s>\n", function);
-//        return;
-//    }
-//
-//    char indent[__indent_size+1];
-//    for(int i = 0; i < __indent_size; i++) {
-//        indent[i] = ' ';
-//    }
-//    indent[__indent_size] = 0;
-//
-    char *indent = "    ";
+    //char *indent = "    ";
     fprintf(stderr, "%*s" "+ %s()\n", __indent_size, " ", function);
     __indent_size += 4;
 }
@@ -63,4 +52,24 @@ void SUCCESSED(const char *function)
 {
     __indent_size -= 4;
     fprintf(stderr, "%*s" "- %s()\n", __indent_size, " ", function);
+}
+
+int time_subtract(struct timeval *result, struct timeval *t2, struct timeval *t1)
+{
+    long int diff = (t2->tv_usec + 1000000 * t2->tv_sec) - (t1->tv_usec + 1000000 * t1->tv_sec);
+    result->tv_sec = diff / 1000000;
+    result->tv_usec = diff % 1000000;
+
+    return (diff<0);
+}
+
+void time_print(struct timeval *tv)
+{
+    char buffer[30];
+    time_t curtime;
+
+    printf("%ld.%06ld", tv->tv_sec, tv->tv_usec);
+    curtime = tv->tv_sec;
+    strftime(buffer, 30, "%m-%d-%Y  %T", localtime(&curtime));
+    printf(" = %s.%06ld\n", buffer, tv->tv_usec);
 }

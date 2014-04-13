@@ -3,19 +3,22 @@
 #include "software_renderer.h"
 #include "util.h"
 
-int __renderer_width = 0;
-int __renderer_height = 0;
-int __renderer_pitch = 0;
 
 void renderer_init(int depth, int flags, int width, int height, int pitch)
 {
-    // Set variables
-    __renderer_width  = width;
-    __renderer_height = height;
-    //__renderer_pitch  = pitch;
+    // init renderer struct
+    renderer.width = width;
+    renderer.height = height;
+    renderer.pitch = pitch;
+    renderer.depth = depth;
 
     // run command
-    __renderer_opencl_init();
+    __renderer_opencl_init(&renderer);
+}
+
+void renderer_destroy()
+{
+    // nothing to destroy
 }
 
 void renderer_renderer2(struct pixel **pixel_board)
@@ -100,7 +103,7 @@ void renderer_cleanup()
 
 void dump_pixel_board(struct pixel *pixel_board, int num_rays, int rays_per_pixel)
 {
-    int width = 320;
+    int width = renderer.width;
     for(int i = 0; i < num_rays / rays_per_pixel; i++) {
         int x = i % width;
         int y = i / width;
@@ -117,8 +120,8 @@ void dump_pixel_board(struct pixel *pixel_board, int num_rays, int rays_per_pixe
 void dump_rays(struct ray *rays, int size)
 {
     for(int i = 0; i < size; i++) {
-        int x = i % __renderer_width;
-        int y = __renderer_height > 1 ? i / __renderer_width : 0;
+        int x = i % renderer.width;
+        int y = renderer.height > 1 ? i / renderer.width : 0;
         printf("(%02i, %02i) <= ray.position(%5.2f, %5.2f, %5.2f) + ray.direction(%5.2f, %5.2f, %5.2f)\n",
             x, y, rays[i].position.s[0], rays[i].position.s[1], rays[i].position.s[2], rays[i].direction.s[0], rays[i].direction.s[1], rays[i].direction.s[2]);
     }

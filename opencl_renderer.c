@@ -3,10 +3,10 @@
 #include "util.h"
 
 
-void __renderer_opencl_init()
+void __renderer_opencl_init(struct renderer *renderer)
 {
     rtcl_opencl_info();
-    rtcl_init();
+    rtcl_init(renderer);
     rtcl_copy_scene_to_device();
 }
 
