@@ -86,6 +86,11 @@ void renderer_render(struct pixel **pixel_board)
     free(rays);
 }
 
+void renderer_update_scene()
+{
+    __renderer_opencl_update_scene();
+}
+
 void renderer_trace_rays(struct pixel **pixel_board, const struct ray *rays, int num_rays, int rays_per_pixel)
 {
     __renderer_opencl_trace_rays(pixel_board, rays, num_rays, rays_per_pixel);

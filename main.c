@@ -24,42 +24,47 @@ int main(int argc, char *argv[])
     // init GUI
     gui_init(width, height);
 
-    // get start time
-    gettimeofday(&time_start, NULL);
-    time_print(&time_start);
 
     // init Renderer
     renderer_init(recursion_depth, renderer_flags, width, height, pitch);
 
     // 
     struct pixel *pixel_board;
-    renderer_render(&pixel_board);
-    
-    Uint32 frame[width*height];
-    for(Uint32 i = 0; i < width*height; i++) {
-        //int x = i % width;
-        //int y = i / width;
-        frame[i] = ((int)floor(pixel_board[i].color.s[c_R]*255)) << 16 |
-                   ((int)floor(pixel_board[i].color.s[c_G]*255)) << 8 |
-                   ((int)floor(pixel_board[i].color.s[c_B]*255));
+    for(int i = 0; i < 50; i++) {
+        if(gui_quit_pressed()) {
+            break;
+        }
+
+        // get start time
+        gettimeofday(&time_start, NULL);
+        time_print(&time_start);
+
+        renderer_render(&pixel_board);
+        
+        Uint32 frame[width*height];
+        for(Uint32 i = 0; i < width*height; i++) {
+            //int x = i % width;
+            //int y = i / width;
+            frame[i] = ((int)floor(pixel_board[i].color.s[c_R]*255)) << 16 |
+                       ((int)floor(pixel_board[i].color.s[c_G]*255)) << 8 |
+                       ((int)floor(pixel_board[i].color.s[c_B]*255));
+        }
+        SDL_UpdateTexture(gui.texture, NULL, frame, width*4);
+
+        // get end time
+        gettimeofday(&time_end, NULL);
+        time_print(&time_end);
+
+        // get time difference
+        time_subtract(&time_diff, &time_end, &time_start);
+        printf("%ld.%06ld\n", time_diff.tv_sec, time_diff.tv_usec);
+
+        SDL_RenderClear(gui.renderer);
+        SDL_RenderCopy(gui.renderer, gui.texture, NULL, NULL);
+        SDL_RenderPresent(gui.renderer);
+        renderer_update_scene();
     }
-    SDL_UpdateTexture(gui.texture, NULL, frame, width*4);
 
-    // get end time
-    gettimeofday(&time_end, NULL);
-    time_print(&time_end);
-
-    // get time difference
-    time_subtract(&time_diff, &time_end, &time_start);
-    printf("%ld.%06ld\n", time_diff.tv_sec, time_diff.tv_usec);
-
-    SDL_RenderClear(gui.renderer);
-    SDL_RenderCopy(gui.renderer, gui.texture, NULL, NULL);
-    SDL_RenderPresent(gui.renderer);
-
-    while(!gui_quit_pressed()) {
-        // waste CPU
-    }
 
     // destroy GUI
     gui_destroy();

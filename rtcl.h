@@ -34,6 +34,8 @@ struct rtcl {
     char kernel_name[256];
     struct camera camera;
     size_t dimension;
+    int num_pixels;
+    int num_scene_objects;
 } rtcl;
 
 #endif

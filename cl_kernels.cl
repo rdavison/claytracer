@@ -355,6 +355,19 @@ kernel void generate_rays(
     }
 }
 
+kernel void update_scene(
+    global float16 *scene_objects, 
+    constant float3 *update_pos,
+    const int num_objects)
+{
+    unsigned int i = get_global_id(0);
+    if(i < num_objects) {
+        unsigned int j = i * 2;
+        scene_objects[j].s123 += clamp(sin(scene_objects[j].s123), -0.1, 0.1);
+        scene_objects[j+1].s123 += clamp(sin(scene_objects[j].s123), -0.1, 0.1);
+    }
+}
+
 
 kernel void trace_rays(
     constant float16 *scene,  // read only

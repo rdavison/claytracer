@@ -18,6 +18,7 @@ void renderer_destroy();
 void renderer_render();
 void renderer_generate_rays(struct ray **rays, int *size);
 void renderer_trace_rays(struct pixel **pixel_board, const struct ray *rays, int num_rays, int rays_per_pixel);
+void renderer_update_scene();
 void renderer_cleanup();
 
 void dump_rays(struct ray *rays, int size);
