@@ -11,8 +11,9 @@
 
 int main(int argc, char *argv[])
 {
-    int width = 1440;
-    int height = 852;
+    //int width = 1440, height = 852;
+    //int width = 320, height = 240;
+    int width = 640, height = 480;
     int recursion_depth = 1;
     int pitch = 4;
     int renderer_flags = RENDERER_USE_OPENCL_RENDERER;
@@ -30,7 +31,7 @@ int main(int argc, char *argv[])
 
     // 
     struct pixel *pixel_board;
-    for(int i = 0; i < 50; i++) {
+    for(int i = 0; i < 100; i++) {
         if(gui_quit_pressed()) {
             break;
         }

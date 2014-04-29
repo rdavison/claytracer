@@ -21,6 +21,7 @@ struct buffers {
     cl_mem pixel_board;
     cl_mem scene_buffer;
     cl_mem scene_update_positions;
+    cl_mem lights_buffer;
 } buffers;
 
 
@@ -29,7 +30,8 @@ void rtcl_init(struct renderer *renderer)
     srand(time(NULL));
 
     strcpy(rtcl.kernel_name, "INVALID");
-    rtcl.num_scene_objects = 500;
+    rtcl.num_scene_objects = 301;
+    rtcl.recursion_depth = 5;
     rtcl.renderer = renderer;
     rtcl.num_pixels = renderer->width * renderer->height;
     rtcl.dimension = 1;
@@ -83,12 +85,24 @@ void rtcl_init(struct renderer *renderer)
     // Build the program executable
     err = clBuildProgram(rtcl.program, 0, NULL, NULL, NULL, NULL);
     if(err != CL_SUCCESS) {
-        size_t len;
-        char buffer[2048];
-        printf( "Error: Failed to bulid program executable!\n");
-        clGetProgramBuildInfo(rtcl.program, rtcl.device_id, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
-        printf( "%s\n", buffer);
-        exit(1);
+        // Determine the size of the log
+        size_t log_size;
+        clGetProgramBuildInfo(rtcl.program, rtcl.device_id, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+
+        // Allocate memory for the log
+        char log[log_size];
+        
+        // Get the log
+        clGetProgramBuildInfo(rtcl.program, rtcl.device_id, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
+
+        // Print the log
+        printf("%s\n", log);
+//        size_t len;
+//        char buffer[2048];
+//        printf( "Error: Failed to bulid program executable!\n");
+//        clGetProgramBuildInfo(rtcl.program, rtcl.device_id, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
+//        printf( "%s\n", buffer);
+//        exit(1);
     }
 }
 void rtcl_init_buffers()
@@ -127,20 +141,60 @@ void rtcl_init_buffers()
         printf("Error: Failed to allocate device memory!\n");
         exit(1);
     }
+
+    // SCENE UPDATE POSITIONS
+    buffers.lights_buffer = clCreateBuffer(rtcl.context, CL_MEM_READ_ONLY, sizeof(cl_float3) * rtcl.num_lights, NULL, NULL);
+    if(!buffers.pixel_board) {
+        printf("Error: Failed to allocate device memory!\n");
+        exit(1);
+    }
 }
 
 void rtcl_copy_scene_to_device()
 {
-    //struct plane plane = {
-    //    .position = { 0.0f, -2.0f, 0.0f },
-    //    .normal = {0.0f, 1.0f, 0.0f },
-    //    .color = {0.3f, 0.5f, 1.0f, 1.0f },
-    //    .material_type = MATTE
-    //};
+    struct plane plane = {
+        .position = { 0.0f, -2.0f, 0.0f },
+        .normal = {0.0f, 1.0f, 0.0f },
+        .color = {0.2f, 0.2f, 0.2f, 1.0f },
+        .material_type = MIRROR
+    };
+
+    struct plane left = {
+        .position = { -8.0f, 0.0f, 0.0f },
+        .normal = {1.0f, 0.0f, 0.0f },
+        .color = {1.0f, 0.5f, 0.3f, 1.0f },
+        .material_type = MATTE
+    };
+
+    struct plane right = {
+        .position = { 8.0f, 0.0f, 0.0f },
+        .normal = {-1.0f, 0.0f, 0.0f },
+        .color = {0.3f, 0.5f, 1.0f, 1.0f },
+        .material_type = MATTE
+    };
+
+    struct plane back = {
+        .position = { 0.0f, 0.0f, -8.0f },
+        .normal = {0.0f, 0.0f, 1.0f },
+        .color = {0.3f, 1.0f, 0.5f, 1.0f },
+        .material_type = MATTE
+    };
+
+    struct sphere light = {
+        .position = { 0.0f, 0.0f, -10.0f },
+        .radius = 0.1,
+        .color = { 1.0f, 1.0f, 1.0f, 1.0f },
+        .material_type = LIGHT
+    };
 
     struct llist *llist = (struct llist *)calloc(1, sizeof(struct llist));
-    struct sphere *spheres = (struct sphere *)calloc(rtcl.num_scene_objects, sizeof(struct sphere));
-    for(int i = 0; i < rtcl.num_scene_objects; i++) {
+    struct sphere *spheres = (struct sphere *)calloc(rtcl.num_scene_objects-1, sizeof(struct sphere));
+    //llist_append(llist, compile_plane(&back));
+    llist_append(llist, compile_plane(&plane));
+    llist_append(llist, compile_plane(&left));
+    llist_append(llist, compile_plane(&right));
+    llist_append(llist, compile_sphere(&light));
+    for(int i = 0; i < rtcl.num_scene_objects-1; i++) {
         float x, y, z, r, g, b, d;
         x = (float)rand() / (float)RAND_MAX;
         y = (float)rand() / (float)RAND_MAX;
@@ -148,16 +202,17 @@ void rtcl_copy_scene_to_device()
         r = (float)rand() / (float)RAND_MAX;
         g = (float)rand() / (float)RAND_MAX;
         b = (float)rand() / (float)RAND_MAX;
-        d = (float)rand() / (float)RAND_MAX;
+        d = (float)rand() / (float)RAND_MAX+1;
         spheres[i].position.s[0] = x*20.f-10.f;
         spheres[i].position.s[1] = y*20.f-10.f;
         spheres[i].position.s[2] = -z*33.f-43.f;
         spheres[i].radius = d;
-        spheres[i].color.s[0] = r;
-        spheres[i].color.s[1] = g;
-        spheres[i].color.s[2] = b;
+        //spheres[i].material_type = (float)rand() / (float)RAND_MAX < 0.5 ? MATTE : MIRROR;
+        spheres[i].material_type = MIRROR;
+        spheres[i].color.s[0] = spheres[i].material_type == MIRROR ? 1 : r;
+        spheres[i].color.s[1] = spheres[i].material_type == MIRROR ? 1 : g;
+        spheres[i].color.s[2] = spheres[i].material_type == MIRROR ? 1 : b;
         spheres[i].color.s[3] = 1.0f;
-        spheres[i].material_type = MATTE;
         llist_append(llist, compile_sphere(spheres + i));
     }
 
@@ -309,14 +364,16 @@ void rtcl_trace_rays_kernel_init(const struct ray *rays, int num_rays, int rays_
 
     err = 0;
     err |= clSetKernelArg(rtcl.kernel, 0, sizeof(buffers.scene_buffer), &buffers.scene_buffer);
-    err |= clSetKernelArg(rtcl.kernel, 1, sizeof(rtcl.num_scene_objects), &rtcl.num_scene_objects);
-    err |= clSetKernelArg(rtcl.kernel, 2, sizeof(buffers.rays_positions), &buffers.rays_positions);
-    err |= clSetKernelArg(rtcl.kernel, 3, sizeof(buffers.rays_directions), &buffers.rays_directions);
-    err |= clSetKernelArg(rtcl.kernel, 4, sizeof(rays_per_pixel), &rays_per_pixel);
-    err |= clSetKernelArg(rtcl.kernel, 5, sizeof(buffers.pixel_board), &buffers.pixel_board);
-    err |= clSetKernelArg(rtcl.kernel, 6, sizeof(rtcl.camera.screen_width), &rtcl.camera.screen_width);
-    err |= clSetKernelArg(rtcl.kernel, 7, sizeof(rtcl.camera.screen_height), &rtcl.camera.screen_height);
-    err |= clSetKernelArg(rtcl.kernel, 8, sizeof(unsigned int), &rtcl.num_pixels);
+    err |= clSetKernelArg(rtcl.kernel, 1, sizeof(buffers.lights_buffer), &buffers.lights_buffer);
+    err |= clSetKernelArg(rtcl.kernel, 2, sizeof(rtcl.num_scene_objects), &rtcl.num_scene_objects);
+    err |= clSetKernelArg(rtcl.kernel, 3, sizeof(buffers.rays_positions), &buffers.rays_positions);
+    err |= clSetKernelArg(rtcl.kernel, 4, sizeof(buffers.rays_directions), &buffers.rays_directions);
+    err |= clSetKernelArg(rtcl.kernel, 5, sizeof(rays_per_pixel), &rays_per_pixel);
+    err |= clSetKernelArg(rtcl.kernel, 6, sizeof(buffers.pixel_board), &buffers.pixel_board);
+    err |= clSetKernelArg(rtcl.kernel, 7, sizeof(rtcl.camera.screen_width), &rtcl.camera.screen_width);
+    err |= clSetKernelArg(rtcl.kernel, 8, sizeof(rtcl.camera.screen_height), &rtcl.camera.screen_height);
+    err |= clSetKernelArg(rtcl.kernel, 9, sizeof(rtcl.recursion_depth), &rtcl.recursion_depth);
+    err |= clSetKernelArg(rtcl.kernel, 10, sizeof(unsigned int), &rtcl.num_pixels);
     if(err != CL_SUCCESS) {
         printf( "Error: Failed to set kernel arguments! %d\n", err);
         exit(1);
@@ -386,7 +443,7 @@ void rtcl_read_pixel_board(struct pixel **pixel_board)
 
 void rtcl_run()
 {
-    rtcl_opencl_kernel_workgroup_info();
+    //rtcl_opencl_kernel_workgroup_info();
 
     // Execute the kernel over the entire range of our 1d input data set
     // using the maximum number of work group items for this device

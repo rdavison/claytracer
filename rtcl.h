@@ -36,6 +36,8 @@ struct rtcl {
     size_t dimension;
     int num_pixels;
     int num_scene_objects;
+    int recursion_depth;
+    int num_lights;
 } rtcl;
 
 #endif

@@ -14,7 +14,7 @@
 #define c_A (3)
 
 #define MATTE 1
-#define GLASS 2
+#define MIRROR 2
 #define LIGHT 3
 
 typedef struct vec3 {
