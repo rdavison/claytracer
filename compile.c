@@ -91,4 +91,3 @@ void llist_delete(struct llist *a_llist)
 //
 //    struct
 //}
-

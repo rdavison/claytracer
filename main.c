@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     // init Renderer
     renderer_init(recursion_depth, renderer_flags, width, height, pitch);
 
-    // 
+    // pixel board
     struct pixel *pixel_board;
     for(int i = 0; i < 100; i++) {
         if(gui_quit_pressed()) {

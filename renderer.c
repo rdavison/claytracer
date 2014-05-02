@@ -23,6 +23,7 @@ void renderer_destroy()
 
 void renderer_renderer2(struct pixel **pixel_board)
 {
+    // TODO
     // Need two buffers:
     //   - RAY_BUFFER => can never be larger than sizeof(struct ray)*num_pixels*rays_per_pixel
     //   - PIXEL_BUFFER => can never be larger than sizeof(struct pixel)*num_pixels
@@ -32,42 +33,6 @@ void renderer_renderer2(struct pixel **pixel_board)
     //     return list of intersection distoances
     // 3. Generate secondary rays
     // 4. Trace secondary rays
-/*
-
-
-ray_buffer[] : rays_per_pixel * num_pixels * sizeof(struct ray)
-pix_buffer[] : num_pixels * sizeof(struct pixel)
-
-rays = cl_getRays()
-
-
-
---------------------------------------------
-devic
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-*/
-    // 
 }
 
 void renderer_render(struct pixel **pixel_board)

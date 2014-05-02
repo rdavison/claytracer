@@ -10,12 +10,14 @@
 #define MIRROR 2
 #define LIGHT 3
 
+typedef float3 vec3;
+typedef float4 color4;
+
 enum IntersectionType {
     OUTER_HIT,
     INNER_HIT,
     MISS
 };
-
 
 enum IntersectStatus {
     CONTINUE, STOP
@@ -32,55 +34,12 @@ enum RayType {
     INFINITE
 };
 
-
-typedef float3 vec3;
-typedef float4 color4;
-
-
-//struct sphere {
-//    vec3                        position;
-//    float                       radius;
-//    color4                      color;
-//    enum material               material;
-//    //bool isLight;
-//};
-//
-//
-//struct plane {
-//    vec3                        position;
-//    vec3                        normal;
-//    color4                      color;
-//    enum material               material;
-//};
-//
-//struct cube {
-//    vec3                        near;
-//    vec3                        far;
-//    color4                      color;
-//    enum material               material;
-//};
-
-
-struct ray {
-    vec3                        position;
-    vec3                        direction;
-};
-
-
-//struct scene {
-//    struct sphere               sphere;
-//    struct sphere               light;
-//    struct plane                plane;
-//};
-
-
 struct Intersection {
     float                       dist;
     int                         obj_index;
     vec3                        obj_normal;
     enum IntersectionType       type;
 };
-
 
 struct TraceInfo {
     enum IntersectStatus        status;
@@ -93,26 +52,11 @@ struct TraceInfo {
 };
 
 
-// struct pixel_status_t {
-//     struct intersect_scene_t s[5];
-// };
-
-
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 // function prototypes
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
-
-
-/*
-struct TraceInfo intersect_scene_buffer_2_16(
-    constant float16 *buf,
-    int bufsize,
-    float3 ray_pos,
-    float3 ray_dir);
-*/
-
 
 struct Intersection intersect_plane(
     float3 plane_pos, 
@@ -152,82 +96,6 @@ struct TraceInfo intersect_scene(
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-/*
-struct TraceInfo intersect_scene_buffer_2_16(
-    constant float16 *buff,
-    int bufsize,
-    float3 ray_pos,
-    float3 ray_dir)
-{
-    color4 black = {0,0,0,0};
-    // shape sizes = float16 + float16
-    // see compilation information in compile.c
-
-    // loop through objects in scene buffer
-    int obj_index = -1;
-    enum IntersectionType nearest_intersect_result = MISS;
-    float t = 1000000.f;
-    for(int i = 0; i < bufsize; i+=2) {
-        int upper = i;
-        //int lower = i + 1;
-        struct Intersection object_intersect;
-
-        float3 pos;
-        float3 near;
-        switch((int)(buff[upper].s0)) {
-
-        case SHAPE_SPHERE: 
-            pos = buff[upper].s123;
-            float radius = buff[upper].s4;
-            object_intersect = intersect_sphere(pos, radius, ray_pos, ray_dir, t);
-            break;
-
-        case SHAPE_PLANE:
-            pos = buff[upper].s123;
-            float3 normal = buff[upper].s456;
-            object_intersect = intersect_plane(pos, normal, ray_pos, ray_dir, t);
-            break;
-
-        case SHAPE_CUBE:
-            near = buff[upper].s123;
-            float3 far = buff[upper].s456;
-            object_intersect = intersect_cube(near, far, ray_pos, ray_dir, t);
-            break;
-//        case SHAPE_CUBE:
-//            float3 near = buff[upper].s123;
-//            float3 far = buff[upper].s456;
-//            object_intersect = intersect_cube(near, far, ray_pos, ray_dir, t);
-//            break;
-
-        default:
-            printf("ERROR: Invalid shape.\n");
-            //abort();
-            break;
-        }
-
-        nearest_intersect_result = 
-            object_intersect.type == MISS ? MISS : OUTER_HIT;
-
-        if(object_intersect.dist <= t) {
-            t = object_intersect.dist;
-            obj_index = i;
-            //nearest_intersect_result.type
-        }
-    }
-
-    //float16 nearest_object = buf[obj_index];
-    struct Intersection retval;
-    retval.obj_index = obj_index;
-    retval.dist = t;
-    retval.type = nearest_intersect_result;
-
-    struct TraceInfo return_data;
-    
-    return_data.color = retval.obj_index >= 0 ? (float4)buff[retval.obj_index].s0123 : black;
-    return_data.next_ray_type = DONE;
-    return return_data;
-}
-*/
 
 struct Intersection intersect_cube(
     float3 cube_near, 
@@ -236,38 +104,10 @@ struct Intersection intersect_cube(
     float3 ray_dir,
     float max_t)
 {
-//    float t1, t2, tnear = -1000.0f, tfar = 1000.0f, temp, tCube;
-//    float3 b1 = cube_near;
-//    float3 b2 = cube_far;
-//    int intersectFlag = 1;
-//    if(ray_dir == 0.f) {
-//        if(ray_pos < b1 || ray_pos > b2)
-//            intersectFlag = -1;
-//    }
-//
-//    struct Intersection jieguo;
-//    jieguo.dist = max_t;
-//    jieguo.obj_normal = plane_normal;
-//
-//    float d = sqrt(dot(plane_pos, plane_pos));
-//    float num = -d - dot(ray_pos, plane_normal);
-//    float denom = dot(ray_dir, plane_normal);
-//    if(denom == 0) {
-//        jieguo.type = MISS;
-//        return jieguo;
-//    }
-//
-//    float t = num / denom;
-//
-//    if(t > 0.1f && t < max_t) {
-//        jieguo.dist = t;
-//        jieguo.type = OUTER_HIT;
-//        return jieguo;
-//    } else {
-//        jieguo.type = MISS;
-//        return jieguo;
-//    }
     struct Intersection jieguo;
+    //
+    // TODO
+    //
     return jieguo;
 }
 
@@ -278,9 +118,6 @@ struct Intersection intersect_plane(
     float3 ray_dir,
     float max_t)
 {
-    //plane_pos = (float3)(0, -2, 0);
-    //plane_normal = (float3)(0, 1, 0);
-
     struct Intersection jieguo;
     jieguo.dist = max_t;
     jieguo.obj_normal = plane_normal;
@@ -304,7 +141,7 @@ struct Intersection intersect_plane(
         return jieguo;
     }
 }
-// implementation
+
 struct Intersection intersect_sphere(
     float3 sphere_pos, 
     float sphere_radius,
@@ -370,7 +207,6 @@ struct TraceInfo intersect_scene(
 
         float16 upper = scene[i];
 
-        //switch((int)upper.s0) {
         switch((int)scene[i].s0) {
             case SHAPE_SPHERE:
                 obj_intersection = intersect_sphere((float3)upper.s123, upper.s4, ray_pos, ray_dir, nearest_intersection.dist);
@@ -442,22 +278,6 @@ struct TraceInfo intersect_scene(
             traceinfo.next_ray_dir[0] = ray_dir - 2 * dot(ray_dir, normal) * normal;
         }
     }
-
-
-
-
-
-    //if(nearest_intersection.type != MISS) {
-    //    result = (float4)scene[nearest_intersection.obj_index].rgba;
-    //    float ray_dot = dot(ray_dir, nearest_intersection.obj_normal);
-    //    ray_dot = ray_dot < 0 ? -ray_dot : ray_dot;
-    //    result *= ray_dot;
-    //} else {
-    //    result = black;
-    //}
-
-    //return_data.color = result;
-    //return_data.next_ray_type = DONE;
    
     return traceinfo;
 }
@@ -508,17 +328,7 @@ kernel void update_scene(
 
 color4 parse_color(struct TraceInfo *info, int size)
 {
-    //color4 color = (float4)(0,0,0,0);
-//    int count = 1;
-//    for(int i = 0; i < size; i++) {
-//        if(info[i].status == STOP) {
-//            break;
-//        }
-//        count++;
-//    }
-
     for(int i = 0; i < size; i++) {
-        //color = info[i].color;
         if(info[i].status == STOP) {
             if(info[i].next_ray_type == SHADOW) {
                 return (float4)(0,0,0,0);
@@ -555,7 +365,6 @@ kernel void trace_rays(
     if(i < count) {
         int size = 100;
         struct TraceInfo traceinfo[100];
-        //struct pixel_status_t pxs;
 
         traceinfo[0] = intersect_scene(scene, scene_size, ray_pos[i], ray_dir[i], PRIMARY);
         for(int depth = 1; depth < max_depth; depth++) {
@@ -566,7 +375,6 @@ kernel void trace_rays(
                 break;
 
             // otherwise...
-            
             vec3 next_ray_pos = traceinfo[previous].next_ray_pos[0];
             vec3 next_ray_dir = traceinfo[previous].next_ray_dir[0];
             enum RayType next_ray_type = traceinfo[previous].next_ray_type;
@@ -579,39 +387,6 @@ kernel void trace_rays(
         }
 
         color4 color = parse_color(traceinfo, size);
-        //color4 color = traceinfo[0].color;
         pixel_board[i] = color;
-//        pixel_board[i] = (float4)(1, 0, 0, 0);
-
-
-
-
-
-
-
-
-
-//        pxs.s[0] = intersect_scene(scene, scene_size, ray_pos[i], ray_dir[i]);
-//
-//        int depth = 0;
-//        while(pxs.s[depth].next_ray_type != DONE && depth < max_depth) {
-//            int next = depth+1;
-//            switch(pxs.s[depth].next_ray_type) {
-//                case BLOCKED: pxs.s[next].next_ray_type = DONE;
-//                             break;
-//                case REFLECT: pxs.s[next] = intersect_scene(scene, scene_size, pxs.s[depth].refl_ray_pos, pxs.s[depth].refl_ray_dir);
-//                              break;
-//                case REFRACT: pxs.s[next] = intersect_scene(scene, scene_size, pxs.s[depth].refr_ray_pos, pxs.s[depth].refr_ray_dir);
-//                              break;
-//                case BOTH: pxs.s[next] = intersect_scene(scene, scene_size, pxs.s[depth].refl_ray_pos, pxs.s[depth].refl_ray_dir);
-//                           pxs.s[next] = intersect_scene(scene, scene_size, pxs.s[depth].refr_ray_pos, pxs.s[depth].refr_ray_dir);
-//                           break;
-//                case DONE: pxs.s[next].next_ray_type = DONE;
-//                           break;
-//            }
-//            depth = next;
-//        }
-//        color4 color = pxs.s[0].color;
- //       pixel_board[i] = color;
     }
 }

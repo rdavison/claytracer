@@ -5,13 +5,8 @@
 #include "raytracer.h"
 #include "renderer.h"
 
-// forward declaration
-//cl_mem input;                   // device memory used for th input array
-//cl_mem output;                  // device memory used for the output array
-
 void rtcl_init(struct renderer *renderer);
 void rtcl_run();
-void rtcl_validate();
 void rtcl_cleanup();
 void rtcl_opencl_info();
 void rtcl_generate_rays_kernel_init();
@@ -39,5 +34,14 @@ struct rtcl {
     int recursion_depth;
     int num_lights;
 } rtcl;
+
+struct buffers {
+    cl_mem rays_positions;
+    cl_mem rays_directions;
+    cl_mem pixel_board;
+    cl_mem scene_buffer;
+    cl_mem scene_update_positions;
+    cl_mem lights_buffer;
+} buffers;
 
 #endif

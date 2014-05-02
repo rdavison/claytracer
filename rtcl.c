@@ -6,24 +6,12 @@
 #include <time.h>
 #include <stdlib.h>
 
-#define DATA_SIZE (1024)
-
 static int err;                 // error code returned from api calls
 static size_t global;           // global domain size for our calculation
 static size_t local;            // local domain size for our calculation
 
 cl_float3 *h_output_rays_position;
 cl_float3 *h_output_rays_direction;
-
-struct buffers {
-    cl_mem rays_positions;
-    cl_mem rays_directions;
-    cl_mem pixel_board;
-    cl_mem scene_buffer;
-    cl_mem scene_update_positions;
-    cl_mem lights_buffer;
-} buffers;
-
 
 void rtcl_init(struct renderer *renderer)
 {
@@ -97,12 +85,6 @@ void rtcl_init(struct renderer *renderer)
 
         // Print the log
         printf("%s\n", log);
-//        size_t len;
-//        char buffer[2048];
-//        printf( "Error: Failed to bulid program executable!\n");
-//        clGetProgramBuildInfo(rtcl.program, rtcl.device_id, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
-//        printf( "%s\n", buffer);
-//        exit(1);
     }
 }
 void rtcl_init_buffers()
@@ -414,11 +396,8 @@ void rtcl_read_pixel_board(struct pixel **pixel_board)
 {
     struct pixel *pixels = (struct pixel *)malloc(sizeof(struct pixel) * rtcl.num_pixels);
 
-    // struct ray *tmp_rays = (struct ray *)malloc(sizeof(struct ray) * rtcl.num_pixels);
-    // cl_float3 ray_pos[rtcl.num_pixels];
-    // cl_float3 ray_dir[rtcl.num_pixels];
-
     cl_float4 *raw_pixels = (cl_float4 *)malloc(sizeof(cl_float4) * rtcl.num_pixels);
+
     // copy rays on device to host
     err = clEnqueueReadBuffer(rtcl.commands, buffers.pixel_board, CL_TRUE, 0, sizeof(cl_float4) * rtcl.num_pixels, raw_pixels, 0, NULL, NULL);
 
@@ -427,12 +406,6 @@ void rtcl_read_pixel_board(struct pixel **pixel_board)
         pixels[i].color.s[c_G] = raw_pixels[i].s[c_G];
         pixels[i].color.s[c_B] = raw_pixels[i].s[c_B];
         pixels[i].color.s[c_A] = raw_pixels[i].s[c_A];
-        // tmp_rays[i].position.s[v_X] = ray_pos[i].s[v_X];
-        // tmp_rays[i].position.s[v_Y] = ray_pos[i].s[v_Y];
-        // tmp_rays[i].position.s[v_Z] = ray_pos[i].s[v_Z];
-        // tmp_rays[i].direction.s[v_X] = ray_dir[i].s[v_X];
-        // tmp_rays[i].direction.s[v_Y] = ray_dir[i].s[v_Y];
-        // tmp_rays[i].direction.s[v_Z] = ray_dir[i].s[v_Z];
     }
 
     *pixel_board = pixels;
@@ -457,20 +430,6 @@ void rtcl_run()
 
     // Wait for the command queue to get serviced before reading back the results
     clFinish(rtcl.commands);
-}
-
-void rtcl_validate()
-{
-    return;
-//    cl_float3 results[rtcl.num_pixels];
-//    err = clEnqueueReadBuffer(rtcl.commands, d_output_rays, CL_TRUE, 0, sizeof(cl_float3) * rtcl.num_pixels, results, 0, NULL, NULL); 
-//    for(int i = 0; i < rtcl.num_pixels; i++) {
-//        cl_float3 out = results[i];
-//        int x = i % rtcl.renderer->width;
-//        int y = rtcl.renderer->height > 1 ? i / rtcl.renderer->width : 0;
-//        printf("(%02i, %02i) <= ray.pos(%d, %d, %d) + ray.dir(%5.2f, %5.2f, %5.2f)\n",
-//            x, y, 0, 0, 0, out.s[0], out.s[1], out.s[2]);
-//    }
 }
 
 void rtcl_opencl_info()

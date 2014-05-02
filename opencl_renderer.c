@@ -35,8 +35,3 @@ void __renderer_opencl_update_scene()
     rtcl_update_scene();
     rtcl_run();
 }
-
-//void __renderer_opencl_render()
-//{
-//    __renderer_opencl_generate_rays
-//}
