@@ -9,6 +9,7 @@
 #define MATTE 1
 #define MIRROR 2
 #define LIGHT 3
+#define MAX_TRACE_DEPTH 5 // < 5 maxing out private memory?
 
 typedef float3 vec3;
 typedef float4 color4;
@@ -45,10 +46,12 @@ struct TraceInfo {
     enum IntersectStatus        status;
     color4                      color;
     float                       ray_dot;
-    enum RayType                ray_type;
+    float                       dist;
+    color4                      fade_amount;
+/**/enum RayType                ray_type;
     enum RayType                next_ray_type;
-    vec3                        next_ray_pos[2]; // [reflect|refract|none, refract|none]
-    vec3                        next_ray_dir[2]; // [reflect|refract|none, refract|none]
+    vec3                        next_ray_pos[3]; // [reflect|refract|none, refract|none]
+    vec3                        next_ray_dir[3]; // [reflect|refract|none, refract|none]
 };
 
 
@@ -59,20 +62,19 @@ struct TraceInfo {
 //////////////////////////////////////////////////////////////////////////////
 
 struct Intersection intersect_plane(
-    float3 plane_pos, 
-    float3 plane_normal,
+    constant float16 *scene,
+    int obj_index,
     float3 ray_pos, 
     float3 ray_dir,
     float max_t);
 
 
 struct Intersection intersect_sphere(
-    float3 sphere_pos, 
-    float sphere_radius,
+    constant float16 *scene,
+    int obj_index,
     float3 ray_pos, 
     float3 ray_dir,
     float max_t);
-
 
 struct Intersection intersect_cube(
     float3 cube_near, 
@@ -87,7 +89,9 @@ struct TraceInfo intersect_scene(
     int scene_size,
     float3 ray_pos,
     float3 ray_dir,
-    enum RayType ray_type);
+    enum RayType ray_type,
+    float previous_distance,
+    int trace_depth);
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -112,12 +116,15 @@ struct Intersection intersect_cube(
 }
 
 struct Intersection intersect_plane(
-    float3 plane_pos, 
-    float3 plane_normal,
+    constant float16 *scene,
+    int obj_index,
     float3 ray_pos, 
     float3 ray_dir,
     float max_t)
 {
+    float3 plane_pos = scene[obj_index].s123;
+    float3 plane_normal = scene[obj_index].s456;
+
     struct Intersection jieguo;
     jieguo.dist = max_t;
     jieguo.obj_normal = plane_normal;
@@ -143,12 +150,15 @@ struct Intersection intersect_plane(
 }
 
 struct Intersection intersect_sphere(
-    float3 sphere_pos, 
-    float sphere_radius,
+    constant float16 *scene,
+    int obj_index,
     float3 ray_pos, 
     float3 ray_dir,
     float max_t)
 {
+    float3 sphere_pos = scene[obj_index].s123;
+    float sphere_radius = scene[obj_index].s4;
+
     float t0, t1;
     struct Intersection jieguo;
     jieguo.dist = max_t;
@@ -180,102 +190,171 @@ struct Intersection intersect_sphere(
     }
 }
 
-struct TraceInfo intersect_scene(
+struct Intersection Intersection_init(struct Intersection *intersection)
+{
+    intersection->dist = 1000000.0f;
+    intersection->obj_index = -1;
+    intersection->obj_normal = (vec3)(0,0,0);
+    intersection->type = MISS;
+}
+
+void find_nearest_intersection(
     constant float16 *scene,
     int scene_size,
-    float3 ray_pos,
-    float3 ray_dir,
-    enum RayType ray_type)
+    vec3 ray_pos,
+    vec3 ray_dir,
+    struct Intersection *nearest)
 {
-    // constant definitions
-    color4 white  = (color4)(1.f, 1.f, 1.f, 1.f);
-    color4 black  = (color4)(0.f, 0.f, 0.f, 1.f);
-    color4 red    = (color4)(1.f, 0.f, 0.f, 1.f);
-    color4 blue   = (color4)(0.f, 0.f, 1.f, 1.f);
-    color4 yellow = (color4)(1.f, 1.f, 0.f, 1.f);
-    color4 green  = (color4)(0.f, 1.f, 0.f, 1.f);
-    float max_distance = 1000000.0f; // TODO make settable elsewhere
+    Intersection_init(nearest);
 
-    struct Intersection nearest_intersection;
-    nearest_intersection.dist = max_distance;
-    nearest_intersection.type = MISS;
-    nearest_intersection.obj_index = -1;
-    nearest_intersection.obj_normal = (vec3)(0.f, 0.f, 0.f);
-    for(int i = 0; i < scene_size; i+=2) {
+    // loop through all objects
+    for(int obj_index = 0; obj_index < scene_size; obj_index+=2) {
         struct Intersection obj_intersection;
-        obj_intersection.dist = nearest_intersection.dist;
+        Intersection_init(&obj_intersection);
 
-        float16 upper = scene[i];
+        obj_intersection.dist = nearest->dist;
 
-        switch((int)scene[i].s0) {
+        // refers to the upper 16 floats of the raw memory addresses
+        float16 upper = scene[obj_index];
+        int shape_type = (int)upper.s0;
+
+        switch(shape_type) {
             case SHAPE_SPHERE:
-                obj_intersection = intersect_sphere((float3)upper.s123, upper.s4, ray_pos, ray_dir, nearest_intersection.dist);
+                obj_intersection = intersect_sphere(
+                                        scene,
+                                        obj_index,
+                                        ray_pos,
+                                        ray_dir,
+                                        nearest->dist);
                 break;
             case SHAPE_PLANE:
-                obj_intersection = intersect_plane((float3)upper.s123, (float3)upper.s456, ray_pos, ray_dir, nearest_intersection.dist);
+                obj_intersection = intersect_plane(
+                                        scene,
+                                        obj_index,
+                                        ray_pos,
+                                        ray_dir,
+                                        nearest->dist);
                 break;
             default:
                 printf("Error: impossible shape\n");
                 break;
         }
 
-        if(obj_intersection.dist < nearest_intersection.dist && obj_intersection.dist > 0.01f) {
-            nearest_intersection = obj_intersection;
-            nearest_intersection.obj_index = i;
+        // save nearest intersection
+        if(obj_intersection.dist < nearest->dist && obj_intersection.dist > 0.01f) {
+            *nearest = obj_intersection;
+            nearest->obj_index = obj_index;
         }
     }
+}
+
+void TraceInfo_init(struct TraceInfo *info)
+{
+    info->status = STOP;
+    info->color = (color4)(0,0,0,0);
+    info->ray_dot = 0.f;
+    info->dist = 0.f;
+    info->fade_amount = (color4)(0,0,0,0);
+    info->ray_type = PRIMARY;
+    info->next_ray_type = INFINITE;
+    for(int i = 0; i < 3; i++) {
+        info->next_ray_pos[i] = (vec3)(0,0,0);
+        info->next_ray_dir[i] = (vec3)(0,0,0);
+    }
+}
+
+struct TraceInfo intersect_scene(
+    constant float16 *scene,
+    int scene_size,
+    float3 ray_pos,
+    float3 ray_dir,
+    enum RayType ray_type,
+    float previous_distance,
+    int trace_depth)
+{
+    float max_distance = 1000000.0f; // TODO make settable elsewhere
+
+    struct Intersection nearest_intersection;
+    find_nearest_intersection(scene, scene_size, ray_pos, ray_dir, &nearest_intersection);
+
 
     struct TraceInfo traceinfo;
+    TraceInfo_init(&traceinfo);
+
     traceinfo.ray_type = ray_type;
 
-    if(nearest_intersection.type == MISS) {
-        traceinfo.status = STOP;
-        traceinfo.color = black;
-        traceinfo.next_ray_type = INFINITE;
-        return traceinfo;
-    }
+    color4 light_power = (color4)(1,1,1,1); // TODO: make settable elsewhere
 
-    //float mdot = dot(ray_dir, nearest_intersection.obj_normal);
-    //mdot = mdot < 0 ? -mdot : mdot;
-    //traceinfo.color = mdot * scene[nearest_intersection.obj_index+1].rgba;
-    traceinfo.ray_dot = dot(ray_dir, nearest_intersection.obj_normal);
-    traceinfo.ray_dot = traceinfo.ray_dot < 0 ? -traceinfo.ray_dot : traceinfo.ray_dot;
-    traceinfo.color = traceinfo.ray_dot * scene[nearest_intersection.obj_index+1].rgba;
+    // settings based on whether there was an intersection or not
+    switch(nearest_intersection.type) {
+        case MISS:
+            traceinfo.status = STOP;
+            traceinfo.color = (color4)(0,0,0,0);
+            traceinfo.next_ray_type = INFINITE;
+            return traceinfo;
+
+        case OUTER_HIT:
+        case INNER_HIT:
+        default:
+            traceinfo.dist = nearest_intersection.dist + previous_distance;
+            traceinfo.ray_dot = dot(-ray_dir, nearest_intersection.obj_normal);
+            traceinfo.fade_amount = (light_power * traceinfo.ray_dot) / (4.f * 3.141592f * pow(traceinfo.dist,2));
+            traceinfo.fade_amount = clamp(traceinfo.fade_amount * 5000, 0.f, 1.f);
+            //traceinfo.fade_amount = smoothstep(0.f, 1.f, traceinfo.fade_amount * 5000);
+            traceinfo.color = scene[nearest_intersection.obj_index+1].rgba;
+            break;
+    }
 
     int nearest_material = (int) scene[nearest_intersection.obj_index+1].s4; 
     if(ray_type == LIGHT_SEEK) {
-        if(nearest_material == LIGHT) {
-            traceinfo.next_ray_type = LIGHT_FOUND;
-            traceinfo.status = STOP;
-        } else {
-            traceinfo.next_ray_type = SHADOW;
-            traceinfo.status = STOP;
-        }
+        traceinfo.status = STOP;
+        traceinfo.next_ray_type = select(SHADOW, LIGHT_FOUND, nearest_material == LIGHT);
     } else {
-        if(nearest_material == MATTE) {
+        switch(nearest_material) {
+        case MATTE:
             traceinfo.next_ray_type = LIGHT_SEEK;
             traceinfo.status = CONTINUE;
-        } else if(nearest_material == MIRROR) {
+            break;
+        case MIRROR:
             traceinfo.next_ray_type = REFLECT;
             traceinfo.status = CONTINUE;
-        } else if(nearest_material == LIGHT) {
+            break;
+        case LIGHT:
             traceinfo.next_ray_type = LIGHT_FOUND;
             traceinfo.status = STOP;
+            break;
+        default:
+            break;
         }
     }
 
+    if(trace_depth >= MAX_TRACE_DEPTH-1) {
+        traceinfo.status = STOP;
+    }
+
     if(traceinfo.status == CONTINUE) {
-        if(traceinfo.next_ray_type == LIGHT_SEEK) {
-            float t = nearest_intersection.dist;
-            float3 light_pos = scene[6].s123;
+
+        float t = nearest_intersection.dist;
+        float3 light_pos = scene[6].s123;
+        vec3 normal = normalize(nearest_intersection.obj_normal);
+
+        switch(traceinfo.next_ray_type) {
+        case LIGHT_SEEK:
             traceinfo.next_ray_pos[0] = ray_pos + t * ray_dir;
             traceinfo.next_ray_dir[0] = normalize(light_pos - traceinfo.next_ray_pos[0]);
-        } else if(traceinfo.next_ray_type == REFLECT) {
-            float t = nearest_intersection.dist;
-            vec3 normal = normalize(nearest_intersection.obj_normal);
+            break;
 
+        case REFRACT:
+            // TODO not yet implemented
+            break;
+
+        case REFLECT:
             traceinfo.next_ray_pos[0] = ray_pos + t * ray_dir;
             traceinfo.next_ray_dir[0] = ray_dir - 2 * dot(ray_dir, normal) * normal;
+            break;
+
+        default:
+            break;
         }
     }
    
@@ -321,8 +400,8 @@ kernel void update_scene(
     int i = get_global_id(0);
     if(i < num_objects) {
         unsigned int j = i * 2;
-        scene_objects[j].s123 += clamp(sin(scene_objects[j].s123), -0.016f, 0.016f);
-        //scene_objects[j+1].s123 += clamp(sin(scene_objects[j].s123), -0.01, 0.01);
+        float delta = 0.02f;
+        scene_objects[j].s123 += clamp(sin(scene_objects[j].s123), -delta, delta);
     }
 }
 
@@ -334,19 +413,25 @@ color4 parse_color(struct TraceInfo *info, int size)
                 return (float4)(0,0,0,0);
             }
 
-            color4 light = info[i].color;
+            color4 light = info[i].fade_amount * info[i].color;
+            //color4 acc = (color4)(0.5,0.5,0.5,0.5);
             color4 acc = (color4)(0,0,0,0);
             if(i > 0){
-                for(int j = i-1; j >= 0; j--) {
-                    acc += info[j].color / (float)i;
+                for(int j = i; j >= 0; j--) {
+                    float m = 1.0;
+                    if(info[j].next_ray_type == REFLECT) {
+                        m = 0.5;
+                    }
+                    acc += m * (info[j].fade_amount * info[j].color) / (float)(i+1);
                 }
-                return clamp(acc, 0.f, 1.f);
+                return acc;
             }
             return light;
         }
     }
-    return (float4)(0,0,0,1);
+    return (float4)(0,1,0,1);
 }
+
 
 kernel void trace_rays(
     constant float16 *scene,  // read only
@@ -363,10 +448,10 @@ kernel void trace_rays(
 {
     unsigned int i = get_global_id(0);
     if(i < count) {
-        int size = 100;
-        struct TraceInfo traceinfo[100];
+        int size = MAX_TRACE_DEPTH;
+        struct TraceInfo traceinfo[MAX_TRACE_DEPTH];
 
-        traceinfo[0] = intersect_scene(scene, scene_size, ray_pos[i], ray_dir[i], PRIMARY);
+        traceinfo[0] = intersect_scene(scene, scene_size, ray_pos[i], ray_dir[i], PRIMARY, 0, 0);
         for(int depth = 1; depth < max_depth; depth++) {
 
             int previous = depth - 1;
@@ -383,10 +468,13 @@ kernel void trace_rays(
                 scene_size, 
                 next_ray_pos, 
                 next_ray_dir, 
-                next_ray_type);
+                next_ray_type,
+                traceinfo[depth-1].dist,
+                depth);
         }
 
-        color4 color = parse_color(traceinfo, size);
-        pixel_board[i] = color;
+        color4 color = parse_color(traceinfo, MAX_TRACE_DEPTH);
+        //pixel_board[i] = color;
+        pixel_board[i] = smoothstep(0.f, 1.f, color);
     }
 }

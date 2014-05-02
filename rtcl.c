@@ -18,7 +18,7 @@ void rtcl_init(struct renderer *renderer)
     srand(time(NULL));
 
     strcpy(rtcl.kernel_name, "INVALID");
-    rtcl.num_scene_objects = 301;
+    rtcl.num_scene_objects = 101;
     rtcl.recursion_depth = 5;
     rtcl.renderer = renderer;
     rtcl.num_pixels = renderer->width * renderer->height;
@@ -137,41 +137,43 @@ void rtcl_copy_scene_to_device()
     struct plane plane = {
         .position = { 0.0f, -2.0f, 0.0f },
         .normal = {0.0f, 1.0f, 0.0f },
-        .color = {0.2f, 0.2f, 0.2f, 1.0f },
+        .color = {0.0f, 0.0f, 0.0f, 1.0f },
         .material_type = MIRROR
     };
 
     struct plane left = {
         .position = { -8.0f, 0.0f, 0.0f },
         .normal = {1.0f, 0.0f, 0.0f },
-        .color = {1.0f, 0.5f, 0.3f, 1.0f },
+        //.color = {1.0f, 0.5f, 0.3f, 1.0f },
+        .color = {1.0f, 0.0f, 0.0f, 1.0f },
         .material_type = MATTE
     };
 
     struct plane right = {
         .position = { 8.0f, 0.0f, 0.0f },
         .normal = {-1.0f, 0.0f, 0.0f },
-        .color = {0.3f, 0.5f, 1.0f, 1.0f },
+        //.color = {0.3f, 0.5f, 1.0f, 1.0f },
+        .color = {0.0f, 0.0f, 1.0f, 1.0f },
         .material_type = MATTE
     };
 
-    struct plane back = {
-        .position = { 0.0f, 0.0f, -8.0f },
-        .normal = {0.0f, 0.0f, 1.0f },
+    struct plane top = {
+        .position = { 0.0f, 8.0f, 0.0f },
+        .normal = {0.0f, -1.0f, 0.0f },
         .color = {0.3f, 1.0f, 0.5f, 1.0f },
         .material_type = MATTE
     };
 
     struct sphere light = {
-        .position = { 0.0f, 0.0f, -10.0f },
-        .radius = 0.1,
+        .position = { 0.0f, 0.0f, -25.0f },
+        .radius = 1.f,
         .color = { 1.0f, 1.0f, 1.0f, 1.0f },
         .material_type = LIGHT
     };
 
     struct llist *llist = (struct llist *)calloc(1, sizeof(struct llist));
     struct sphere *spheres = (struct sphere *)calloc(rtcl.num_scene_objects-1, sizeof(struct sphere));
-    //llist_append(llist, compile_plane(&back));
+    //llist_append(llist, compile_plane(&top));
     llist_append(llist, compile_plane(&plane));
     llist_append(llist, compile_plane(&left));
     llist_append(llist, compile_plane(&right));
@@ -188,7 +190,7 @@ void rtcl_copy_scene_to_device()
         spheres[i].position.s[0] = x*20.f-10.f;
         spheres[i].position.s[1] = y*20.f-10.f;
         spheres[i].position.s[2] = -z*33.f-43.f;
-        spheres[i].radius = d;
+        spheres[i].radius = 1.f;
         //spheres[i].material_type = (float)rand() / (float)RAND_MAX < 0.5 ? MATTE : MIRROR;
         spheres[i].material_type = MIRROR;
         spheres[i].color.s[0] = spheres[i].material_type == MIRROR ? 1 : r;
