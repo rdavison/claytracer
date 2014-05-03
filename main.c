@@ -14,8 +14,10 @@ int main(int argc, char *argv[])
     //int width = 1440, height = 852;
     //int width = 320, height = 240;
     int width = 640, height = 480;
+    //int width = 1920, height = 1080;
     int recursion_depth = 1;
     int pitch = 4;
+    int scale = 2;
     int renderer_flags = RENDERER_USE_OPENCL_RENDERER;
 
     struct timeval time_start;
@@ -23,7 +25,7 @@ int main(int argc, char *argv[])
     struct timeval time_diff;
 
     // init GUI
-    gui_init(width, height);
+    gui_init(width, height, scale);
 
 
     // init Renderer
@@ -31,7 +33,7 @@ int main(int argc, char *argv[])
 
     // pixel board
     struct pixel *pixel_board;
-    for(int i = 0; i < 100; i++) {
+    for(int i = 0; i < 1500; i++) {
         if(gui_quit_pressed()) {
             break;
         }
@@ -42,15 +44,22 @@ int main(int argc, char *argv[])
 
         renderer_render(&pixel_board);
         
-        Uint32 frame[width*height];
-        for(Uint32 i = 0; i < width*height; i++) {
-            //int x = i % width;
-            //int y = i / width;
-            frame[i] = ((int)floor(pixel_board[i].color.s[c_R]*255)) << 16 |
-                       ((int)floor(pixel_board[i].color.s[c_G]*255)) << 8 |
-                       ((int)floor(pixel_board[i].color.s[c_B]*255));
+        Uint32 frame[width*height*scale*scale];
+        int p = 0;
+        for(int y = 0; y < height; y++) {
+            for(int m = 0; m < scale; m++) {
+                for(int n = 0; n < width; n++) {
+                    for(int q = 0; q < scale; q++) {
+                        frame[p+q] = ((int)floor(pixel_board[n + width * y].color.s[c_R]*255)) << 16 |
+                                   ((int)floor(pixel_board[n + width * y].color.s[c_G]*255)) << 8 |
+                                   ((int)floor(pixel_board[n + width * y].color.s[c_B]*255));
+                    }
+                    p+=scale;
+                }
+            }
         }
-        SDL_UpdateTexture(gui.texture, NULL, frame, width*4);
+
+        SDL_UpdateTexture(gui.texture, NULL, frame, width*4*scale);
 
         // get end time
         gettimeofday(&time_end, NULL);
@@ -58,7 +67,7 @@ int main(int argc, char *argv[])
 
         // get time difference
         time_subtract(&time_diff, &time_end, &time_start);
-        printf("%ld.%06ld\n", time_diff.tv_sec, time_diff.tv_usec);
+        printf("%d.%06d\n", (int)time_diff.tv_sec, (int)time_diff.tv_usec);
 
         SDL_RenderClear(gui.renderer);
         SDL_RenderCopy(gui.renderer, gui.texture, NULL, NULL);

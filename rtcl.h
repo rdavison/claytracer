@@ -17,6 +17,7 @@ void rtcl_update_scene();
 void rtcl_opencl_kernel_workgroup_info();
 void rtcl_select_kernel(const char *kernel_name);
 void rtcl_copy_scene_to_device();
+void rtcl_init_buffers();
 
 struct rtcl {
     cl_device_id device_id;         // compute device id

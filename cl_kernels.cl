@@ -1,97 +1,5 @@
+#include "cl_kernels.h"
 #include "shape_defines.h"
-
-//////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////
-// typedefs, enums, and structs
-//////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////
-
-#define MATTE 1
-#define MIRROR 2
-#define LIGHT 3
-#define MAX_TRACE_DEPTH 5 // < 5 maxing out private memory?
-
-typedef float3 vec3;
-typedef float4 color4;
-
-enum IntersectionType {
-    OUTER_HIT,
-    INNER_HIT,
-    MISS
-};
-
-enum IntersectStatus {
-    CONTINUE, STOP
-};
-
-enum RayType {
-    PRIMARY,
-    REFLECT,
-    REFRACT,
-    REFLECT_AND_REFRACT,
-    LIGHT_SEEK,
-    SHADOW,
-    LIGHT_FOUND,
-    INFINITE
-};
-
-struct Intersection {
-    float                       dist;
-    int                         obj_index;
-    vec3                        obj_normal;
-    enum IntersectionType       type;
-};
-
-struct TraceInfo {
-    enum IntersectStatus        status;
-    color4                      color;
-    float                       ray_dot;
-    float                       dist;
-    color4                      fade_amount;
-/**/enum RayType                ray_type;
-    enum RayType                next_ray_type;
-    vec3                        next_ray_pos[3]; // [reflect|refract|none, refract|none]
-    vec3                        next_ray_dir[3]; // [reflect|refract|none, refract|none]
-};
-
-
-//////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////
-// function prototypes
-//////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////
-
-struct Intersection intersect_plane(
-    constant float16 *scene,
-    int obj_index,
-    float3 ray_pos, 
-    float3 ray_dir,
-    float max_t);
-
-
-struct Intersection intersect_sphere(
-    constant float16 *scene,
-    int obj_index,
-    float3 ray_pos, 
-    float3 ray_dir,
-    float max_t);
-
-struct Intersection intersect_cube(
-    float3 cube_near, 
-    float3 cube_far,
-    float3 ray_pos, 
-    float3 ray_dir,
-    float max_t);
-
-
-struct TraceInfo intersect_scene(
-    constant float16 *scene,
-    int scene_size,
-    float3 ray_pos,
-    float3 ray_dir,
-    enum RayType ray_type,
-    float previous_distance,
-    int trace_depth);
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -102,8 +10,8 @@ struct TraceInfo intersect_scene(
 
 
 struct Intersection intersect_cube(
-    float3 cube_near, 
-    float3 cube_far,
+    constant float16 *scene,
+    int obj_index,
     float3 ray_pos, 
     float3 ray_dir,
     float max_t)
@@ -257,10 +165,62 @@ void TraceInfo_init(struct TraceInfo *info)
     info->fade_amount = (color4)(0,0,0,0);
     info->ray_type = PRIMARY;
     info->next_ray_type = INFINITE;
+    info->blocked = false;
     for(int i = 0; i < 3; i++) {
         info->next_ray_pos[i] = (vec3)(0,0,0);
         info->next_ray_dir[i] = (vec3)(0,0,0);
     }
+}
+
+bool is_blocked(
+    constant float16 *scene,
+    int scene_size,
+    float3 ray_pos,
+    float3 ray_dir,
+    float max_t,
+    int self_index)
+{
+    for(int obj_index = 2; obj_index < scene_size; obj_index+=2) {
+        if(obj_index == self_index) {
+            continue;
+        }
+        struct Intersection obj_intersection;
+        Intersection_init(&obj_intersection);
+
+        //obj_intersection.dist = max_t;
+
+        // refers to the upper 16 floats of the raw memory addresses
+        float16 upper = scene[obj_index];
+        int shape_type = (int)upper.s0;
+
+        switch(shape_type) {
+            case SHAPE_SPHERE:
+                obj_intersection = intersect_sphere(
+                                        scene,
+                                        obj_index,
+                                        ray_pos,
+                                        ray_dir,
+                                        max_t);
+                break;
+            case SHAPE_PLANE:
+                obj_intersection = intersect_plane(
+                                        scene,
+                                        obj_index,
+                                        ray_pos,
+                                        ray_dir,
+                                        max_t);
+                break;
+            default:
+                printf("Error: impossible shape\n");
+                break;
+        }
+
+        // save nearest intersection
+        if(obj_intersection.dist < max_t) {
+            return true;
+        }
+    }
+    return false;
 }
 
 struct TraceInfo intersect_scene(
@@ -277,6 +237,20 @@ struct TraceInfo intersect_scene(
     struct Intersection nearest_intersection;
     find_nearest_intersection(scene, scene_size, ray_pos, ray_dir, &nearest_intersection);
 
+    vec3 point = ray_pos + nearest_intersection.dist * ray_dir;
+    vec3 light_pos = scene[0].s123;
+    vec3 light_dir = normalize(light_pos - point);
+    float light_dist = distance(point, light_pos);
+    
+
+    struct Intersection light_intersection = intersect_sphere(
+                                        scene,
+                                        0,
+                                        point,
+                                        light_dir,
+                                        light_dist);
+
+    struct Intersection toLight;
 
     struct TraceInfo traceinfo;
     TraceInfo_init(&traceinfo);
@@ -286,6 +260,8 @@ struct TraceInfo intersect_scene(
     color4 light_power = (color4)(1,1,1,1); // TODO: make settable elsewhere
 
     // settings based on whether there was an intersection or not
+    traceinfo.blocked = is_blocked(scene, scene_size, point, light_dir, light_dist, light_intersection.dist);
+
     switch(nearest_intersection.type) {
         case MISS:
             traceinfo.status = STOP;
@@ -335,7 +311,7 @@ struct TraceInfo intersect_scene(
     if(traceinfo.status == CONTINUE) {
 
         float t = nearest_intersection.dist;
-        float3 light_pos = scene[6].s123;
+        float3 light_pos = scene[0].s123;
         vec3 normal = normalize(nearest_intersection.obj_normal);
 
         switch(traceinfo.next_ray_type) {
@@ -401,7 +377,7 @@ kernel void update_scene(
     if(i < num_objects) {
         unsigned int j = i * 2;
         float delta = 0.02f;
-        scene_objects[j].s123 += clamp(sin(scene_objects[j].s123), -delta, delta);
+        scene_objects[j].s123 += clamp(sin(1.f/(scene_objects[j].s123)), -delta, delta);
     }
 }
 
@@ -409,20 +385,28 @@ color4 parse_color(struct TraceInfo *info, int size)
 {
     for(int i = 0; i < size; i++) {
         if(info[i].status == STOP) {
-            if(info[i].next_ray_type == SHADOW) {
-                return (float4)(0,0,0,0);
-            }
 
-            color4 light = info[i].fade_amount * info[i].color;
-            //color4 acc = (color4)(0.5,0.5,0.5,0.5);
+            color4 light = info[i].color;
             color4 acc = (color4)(0,0,0,0);
+
             if(i > 0){
                 for(int j = i; j >= 0; j--) {
-                    float m = 1.0;
-                    if(info[j].next_ray_type == REFLECT) {
-                        m = 0.5;
+                    if(info[j].next_ray_type == SHADOW) {
+                        continue;
                     }
-                    acc += m * (info[j].fade_amount * info[j].color) / (float)(i+1);
+                    if(info[j].blocked) {
+                        float m = 1.f;
+                        if(info[j].next_ray_type == REFLECT) {
+                            m = 0.75f;
+                        }
+                        acc += (m * (info[j].fade_amount * info[j].color) / (float)(i+1)) / 2.f;
+                    } else {
+                        float m = 1.f;
+                        if(info[j].next_ray_type == REFLECT) {
+                            m = 0.75f;
+                        }
+                        acc += m * (info[j].fade_amount * info[j].color) / (float)(i+1);
+                    }
                 }
                 return acc;
             }
@@ -435,7 +419,7 @@ color4 parse_color(struct TraceInfo *info, int size)
 
 kernel void trace_rays(
     constant float16 *scene,  // read only
-    constant float16 *lights,  // read only
+    constant float16 *lights,  // read only  // TODO IMPLEMENT
     const int scene_size, // size of the float16 array
     global float3 *ray_pos,
     global float3 *ray_dir,

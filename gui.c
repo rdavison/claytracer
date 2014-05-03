@@ -1,6 +1,6 @@
 #include "gui.h"
 
-int gui_init(int width, int height)
+int gui_init(int width, int height, int scale)
 {
     SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
     SDL_Init(SDL_INIT_VIDEO);
@@ -9,8 +9,8 @@ int gui_init(int width, int height)
         "[OpenCL] Inefficiently Raytraced!",
         SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED,
-        width,
-        height,
+        width * scale,
+        height * scale,
         SDL_WINDOW_ALLOW_HIGHDPI);
 
     gui.renderer = SDL_CreateRenderer(
@@ -22,8 +22,8 @@ int gui_init(int width, int height)
         gui.renderer,
         SDL_PIXELFORMAT_RGB888,
         SDL_TEXTUREACCESS_STREAMING,
-        width,
-        height);
+        width * scale,
+        height * scale);
 
     return 0;
 }

@@ -9,7 +9,7 @@ struct gui {
     SDL_Texture *texture;
 } gui;
 
-int gui_init(int width, int height);
+int gui_init(int width, int height, int scale);
 int gui_destroy();
 bool gui_quit_pressed();
 
