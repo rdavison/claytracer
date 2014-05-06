@@ -12,7 +12,7 @@
 int main(int argc, char *argv[])
 {
     //int width = 1440, height = 852;
-    int width = 320, height = 240;
+    int width = 320, height = 320;
     //int width = 160, height = 120;
     //int width = 640, height = 480;
     //int width = 1920, height = 1080;
