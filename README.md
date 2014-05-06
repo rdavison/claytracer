@@ -12,4 +12,6 @@ Dependencies: SDL2 http://www.libsdl.org/download-2.0.php
 TODO List
 =========
 
-* Allow points to generate more than one ray. For example, a ray hitting a mirror needs to generate a reflected ray AND a ray to seek a light, that way reflected surfaces can be subject to shadows.
+* Fix the warping of the image near the edges of the screen.
+* Allow variable amount of lights in the scene.
+* Implement functionality to allow the user to move the camera via user input to "fly around" the scene.

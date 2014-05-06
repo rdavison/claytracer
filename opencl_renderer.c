@@ -1,6 +1,7 @@
 #include "opencl_renderer.h"
 #include "rtcl.h"
 #include "util.h"
+#include "motion.h"
 
 
 void __renderer_opencl_init(struct renderer *renderer)
@@ -32,6 +33,8 @@ void __renderer_opencl_trace_rays(struct pixel **pixel_board, const struct ray *
 
 void __renderer_opencl_update_scene()
 {
+    rtcl_move(MOVE_DIR_FORWARD,0.1); // MOVE FORWARDS 0.5 UNITS PER FRAME
+    rtcl_run();
     rtcl_update_scene();
     rtcl_run();
 }

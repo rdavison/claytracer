@@ -1,5 +1,6 @@
 #include "cl_kernels.h"
 #include "shape_defines.h"
+#include "motion.h"
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -494,14 +495,15 @@ kernel void update_scene(
 {
     int i = get_global_id(0);
 
-    if(i > 0 && i < 7) {
+    if(i < 7) {
         return;
     }
 
     if(i < num_objects) {
         unsigned int j = i * 2;
-        float delta = 0.02f;
-        scene_objects[j].s123 += clamp(sin(1.f/(scene_objects[j].s123)), -delta, delta);
+        float delta = sin((float)frame_num/4.f)/4.f;
+        scene_objects[j].s1 += delta;
+        //scene_objects[j].s123 += clamp(sin(1.f/(scene_objects[j].s123)), -delta, delta);
         //scene_objects[j].s1 += clamp(sin((float)frame_num), (float)-i, (float)i);
         //scene_objects[j].s2 += clamp(tan((float)frame_num), -0.1f, 0.1f);
         //scene_objects[j].s3 += clamp(cos((float)frame_num), -0.1f, 0.1f);
@@ -660,3 +662,37 @@ kernel void trace_rays(
         //pixel_board[i] = smoothstep(0.f, 1.f, color);
     }
 }
+
+
+kernel void translate_world(
+    global float16 *scene,
+    const int count,
+    const int direction,
+    const float amount)
+{
+    unsigned int i = get_global_id(0);
+    if(i < count) {
+        i *= 2;
+        switch(direction) {
+        case MOVE_DIR_UP:
+            scene[i].s2 -= amount;
+            break;
+        case MOVE_DIR_DOWN:
+            scene[i].s2 += amount;
+            break;
+        case MOVE_DIR_LEFT:
+            scene[i].s1 += amount;
+            break;
+        case MOVE_DIR_RIGHT:
+            scene[i].s1 -= amount;
+            break;
+        case MOVE_DIR_FORWARD:
+            scene[i].s3 += amount;
+            break;
+        case MOVE_DIR_BACKWARD:
+            scene[i].s3 -= amount;
+            break;
+        }
+    }
+}
+    

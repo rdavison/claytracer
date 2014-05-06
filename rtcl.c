@@ -18,7 +18,7 @@ void rtcl_init(struct renderer *renderer)
     srand(time(NULL));
 
     strcpy(rtcl.kernel_name, "INVALID");
-    rtcl.num_scene_objects = 301;
+    rtcl.num_scene_objects = 31;
     rtcl.recursion_depth = 5;
     rtcl.renderer = renderer;
     rtcl.num_pixels = renderer->width * renderer->height;
@@ -166,14 +166,14 @@ void rtcl_copy_scene_to_device()
         .position = { 0.0f, 0.0f, 3.0f },
         .normal = {0.0f, 0.0f, -1.0f },
         .color = {0.0f, 0.0f, 1.0f, 1.0f },
-        .material_type = MATTE
+        .material_type = MIRROR
     };
 
     struct plane B = {
         .position = { 0.0f, 0.0f, -30.0f },
         .normal = {0.0f, 0.0f, 1.0f },
         .color = {0.0f, 1.0f, 0.0f, 1.0f },
-        .material_type = MIRROR
+        .material_type = MATTE
     };
 
     //struct box BOX = {
@@ -597,4 +597,18 @@ void rtcl_opencl_kernel_workgroup_info()
     printf("* Local Mem Size:  %llu\n", lms);
     printf("* Private Mem Size : %lluKiB\n", pms/1024);
     printf("* Compile Work Group Size : [%zu, %zu, %zu]\n", cwgs[0], cwgs[1], cwgs[2]);
+}
+
+void rtcl_move(const int direction, const float amount)
+{
+    rtcl_select_kernel("translate_world");
+    err = 0;
+    err |= clSetKernelArg(rtcl.kernel, 0, sizeof(buffers.scene_buffer), &buffers.scene_buffer);
+    err |= clSetKernelArg(rtcl.kernel, 1, sizeof(rtcl.num_scene_objects), &rtcl.num_scene_objects);
+    err |= clSetKernelArg(rtcl.kernel, 2, sizeof(direction), &direction);
+    err |= clSetKernelArg(rtcl.kernel, 3, sizeof(amount), &amount);
+    if(err != CL_SUCCESS) {
+        printf( "Error: Failed to set kernel arguments! %d\n", err);
+        exit(1);
+    }
 }

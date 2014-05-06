@@ -1,0 +1,6 @@
+#define MOVE_DIR_UP 0
+#define MOVE_DIR_DOWN 1
+#define MOVE_DIR_LEFT 2
+#define MOVE_DIR_RIGHT 3
+#define MOVE_DIR_FORWARD 4
+#define MOVE_DIR_BACKWARD 5
