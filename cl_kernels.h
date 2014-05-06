@@ -1,7 +1,7 @@
 #define MATTE 1
 #define MIRROR 2
 #define LIGHT 3
-#define MAX_TRACE_DEPTH 5 // > 5 maxing out private memory? TODO: fix this
+#define MAX_TRACE_DEPTH 7 // > 5 maxing out private memory? TODO: fix this
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
@@ -49,6 +49,12 @@ struct TraceInfo {
 /**/enum RayType                ray_type;
     enum RayType                next_ray_type;
     bool                        blocked;
+    vec3                        light_dir;
+    vec3                        obj_normal;
+    vec3                        refl_dir;
+    vec3                        viewer_dir;
+    int                         material;
+    color4                      light_arriving;
     vec3                        next_ray_pos[3]; // [reflect|refract|none, refract|none]
     vec3                        next_ray_dir[3]; // [reflect|refract|none, refract|none]
 };
@@ -116,7 +122,8 @@ kernel void generate_rays(
 kernel void update_scene(
     global float16 *scene_objects, 
     constant float3 *update_pos,
-    const int num_objects);
+    const int num_objects,
+    const int frame_num);
 
 color4 parse_color(struct TraceInfo *info, int size);
 

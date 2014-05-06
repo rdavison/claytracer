@@ -37,6 +37,34 @@ struct node *compile_sphere(const struct sphere *a_sphere)
     return sphere_node;
 }
 
+struct node *compile_box(const struct box *a_box)
+{
+    struct node *box_node = (struct node *)calloc(1, sizeof(struct node));
+
+    box_node->upper.s[0] = SHAPE_BOX;
+    box_node->upper.s[1] = a_box->position.s[0];
+    box_node->upper.s[2] = a_box->position.s[1];
+    box_node->upper.s[3] = a_box->position.s[2];
+    box_node->upper.s[4] = a_box->vmin.s[0];
+    box_node->upper.s[5] = a_box->vmin.s[1];
+    box_node->upper.s[6] = a_box->vmin.s[2];
+    box_node->upper.s[7] = a_box->vmax.s[0];
+    box_node->upper.s[8] = a_box->vmax.s[1];
+    box_node->upper.s[9] = a_box->vmax.s[2];
+    // 10 - 15 are padding
+
+    box_node->lower.s[0] = a_box->color.s[0];
+    box_node->lower.s[1] = a_box->color.s[1];
+    box_node->lower.s[2] = a_box->color.s[2];
+    box_node->lower.s[3] = a_box->color.s[3];
+    box_node->lower.s[4] = a_box->material_type;
+    // 5 - 15 are padding
+
+    box_node->next = NULL;
+    
+    return box_node;
+}
+
 struct node *compile_plane(const struct plane *a_plane)
 {
     struct node *plane_node = (struct node *)calloc(1, sizeof(struct node));

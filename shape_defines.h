@@ -3,6 +3,6 @@
 
 #define SHAPE_SPHERE 1
 #define SHAPE_PLANE 2
-#define SHAPE_CUBE 3
+#define SHAPE_BOX 3
 
 #endif

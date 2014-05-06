@@ -23,6 +23,85 @@ struct Intersection intersect_cube(
     return jieguo;
 }
 
+struct Intersection intersect_box(
+    constant float16 *scene,
+    int obj_index,
+    float3 ray_pos,
+    float3 ray_dir,
+    float max_t)
+{
+    struct Intersection jieguo;
+    jieguo.type = MISS;
+    jieguo.dist = max_t;
+
+    vec3 vmin = scene[obj_index].s456;
+    vec3 vmax = scene[obj_index].s789;
+
+    float tmin, tmax, tymin, tymax, tzmin, tzmax;
+    if(ray_dir.x >= 0) {
+        tmin = (vmin.x - ray_pos.x) / ray_dir.x;
+        tmax = (vmax.x - ray_pos.x) / ray_dir.x;
+    } else {
+        tmin = (vmax.x - ray_pos.x) / ray_dir.x;
+        tmax = (vmin.x - ray_pos.x) / ray_dir.x;
+    }
+    if(ray_dir.y >= 0) {
+        tymin = (vmin.y - ray_pos.y) / ray_dir.y;
+        tymax = (vmax.y - ray_pos.y) / ray_dir.y;
+    } else {
+        tymin = (vmax.y - ray_pos.y) / ray_dir.y;
+        tymax = (vmin.y - ray_pos.y) / ray_dir.y;
+    }
+    if((tmin > tymax) || (tymin > tmax)) {
+        return jieguo;
+    }
+    if(tymin > tmin) {
+        tmin = tymin;
+    }
+    if(tymax < tmax) {
+        tmax = tymax;
+    }
+    if(ray_dir.z >= 0) {
+        tzmin = (vmin.z - ray_pos.z) / ray_dir.z;
+        tzmax = (vmax.z - ray_pos.z) / ray_dir.z;
+    } else {
+        tzmax = (vmax.z - ray_pos.z) / ray_dir.z;
+        tzmin = (vmin.z - ray_pos.z) / ray_dir.z;
+    }
+    if((tmin > tzmax) || (tzmin > tmax)) {
+        return jieguo;
+    }
+    if(tzmin > tmin) {
+        tmin = tzmin;
+    }
+    if(tzmax < tmax) {
+        tmax = tzmax;
+    }
+    
+    jieguo.type = OUTER_HIT;
+    jieguo.dist = tmin;
+
+    // calculate normal
+    //vec3 center = scene[obj_index].s123;
+    vec3 point = ray_pos + jieguo.dist * ray_dir;
+    float eps = 0.01;
+    //float minimum = 1000000.0;
+    if(fabs(point.x - vmin.x) < eps)
+        jieguo.obj_normal = (vec3)(-1.f,0.f,0.f);
+    else if(fabs(point.x - vmax.x) < eps)
+        jieguo.obj_normal = (vec3)(1.f,0.f,0.f);
+    else if(fabs(point.y - vmin.y) < eps)
+        jieguo.obj_normal = (vec3)(0.f,-1.f,0.f);
+    else if(fabs(point.y - vmax.y) < eps)
+        jieguo.obj_normal = (vec3)(0.f,1.f,0.f);
+    else if(fabs(point.z - vmin.z) < eps)
+        jieguo.obj_normal = (vec3)(0.f,0.f,1.f);
+    else if(fabs(point.z - vmax.z) < eps)
+        jieguo.obj_normal = (vec3)(0.f,0.f,-1.f);
+
+    return jieguo;
+}
+
 struct Intersection intersect_plane(
     constant float16 *scene,
     int obj_index,
@@ -143,8 +222,18 @@ void find_nearest_intersection(
                                         ray_dir,
                                         nearest->dist);
                 break;
+            case SHAPE_BOX:
+                obj_intersection = intersect_box(
+                                        scene,
+                                        obj_index,
+                                        ray_pos,
+                                        ray_dir,
+                                        nearest->dist);
+                break;
             default:
+                //exit(-1);
                 printf("Error: impossible shape\n");
+
                 break;
         }
 
@@ -166,6 +255,11 @@ void TraceInfo_init(struct TraceInfo *info)
     info->ray_type = PRIMARY;
     info->next_ray_type = INFINITE;
     info->blocked = false;
+    info->light_dir = (vec3)(0,0,0);
+    info->obj_normal = (vec3)(0,0,0);
+    info->refl_dir = (vec3)(0,0,0);
+    info->viewer_dir = (vec3)(0,0,0);
+    info->material = 0;
     for(int i = 0; i < 3; i++) {
         info->next_ray_pos[i] = (vec3)(0,0,0);
         info->next_ray_dir[i] = (vec3)(0,0,0);
@@ -210,8 +304,16 @@ bool is_blocked(
                                         ray_dir,
                                         max_t);
                 break;
+            case SHAPE_BOX:
+                obj_intersection = intersect_box(
+                                        scene,
+                                        obj_index,
+                                        ray_pos,
+                                        ray_dir,
+                                        max_t);
             default:
-                printf("Error: impossible shape\n");
+                //printf("Error: impossible shape\n");
+                //exit(-1);
                 break;
         }
 
@@ -232,6 +334,7 @@ struct TraceInfo intersect_scene(
     float previous_distance,
     int trace_depth)
 {
+    color4 intensity = (color4)(1,1,1,1); // TODO make settable elsewhere
     float max_distance = 1000000.0f; // TODO make settable elsewhere
 
     struct Intersection nearest_intersection;
@@ -244,23 +347,34 @@ struct TraceInfo intersect_scene(
     
 
     struct Intersection light_intersection = intersect_sphere(
-                                        scene,
-                                        0,
-                                        point,
-                                        light_dir,
-                                        light_dist);
+        scene,
+        0,
+        point,
+        light_dir,
+        light_dist);
 
-    struct Intersection toLight;
+    bool blocked = is_blocked(
+        scene,
+        scene_size,
+        point,
+        light_dir,
+        light_dist,
+        light_intersection.dist);
 
     struct TraceInfo traceinfo;
     TraceInfo_init(&traceinfo);
 
     traceinfo.ray_type = ray_type;
+    traceinfo.blocked = blocked;
 
-    color4 light_power = (color4)(1,1,1,1); // TODO: make settable elsewhere
+    float cos_theta = dot(light_dir, nearest_intersection.obj_normal);
+    traceinfo.light_arriving = (intensity * cos_theta) / (4.f * 3.141592f * pow(light_intersection.dist, 2)) ;
 
-    // settings based on whether there was an intersection or not
-    traceinfo.blocked = is_blocked(scene, scene_size, point, light_dir, light_dist, light_intersection.dist);
+    traceinfo.light_dir = light_dir;
+    traceinfo.obj_normal = nearest_intersection.obj_normal;
+    vec3 origin = (vec3)(0,0,0);
+    traceinfo.viewer_dir = normalize(origin - point);
+    traceinfo.refl_dir = normalize(2 * dot(light_dir, traceinfo.obj_normal)*traceinfo.obj_normal - light_dir);
 
     switch(nearest_intersection.type) {
         case MISS:
@@ -272,16 +386,19 @@ struct TraceInfo intersect_scene(
         case OUTER_HIT:
         case INNER_HIT:
         default:
-            traceinfo.dist = nearest_intersection.dist + previous_distance;
-            traceinfo.ray_dot = dot(-ray_dir, nearest_intersection.obj_normal);
-            traceinfo.fade_amount = (light_power * traceinfo.ray_dot) / (4.f * 3.141592f * pow(traceinfo.dist,2));
-            traceinfo.fade_amount = clamp(traceinfo.fade_amount * 5000, 0.f, 1.f);
+            //traceinfo.dist = nearest_intersection.dist;
+            //traceinfo.ray_dot = dot(-ray_dir, nearest_intersection.obj_normal);
+            //traceinfo.fade_amount = (light_power * traceinfo.ray_dot) / (4.f * 3.141592f * pow(traceinfo.dist, 2));
+            //traceinfo.fade_amount *= pow(traceinfo.dist, 3.f/2.f);
+            //traceinfo.fade_amount = clamp(traceinfo.fade_amount * 100, 0.f, 1.f);
+            //traceinfo.fade_amount = 1.0f - traceinfo.fade_amount;
             //traceinfo.fade_amount = smoothstep(0.f, 1.f, traceinfo.fade_amount * 5000);
             traceinfo.color = scene[nearest_intersection.obj_index+1].rgba;
             break;
     }
 
     int nearest_material = (int) scene[nearest_intersection.obj_index+1].s4; 
+    traceinfo.material = nearest_material;
     if(ray_type == LIGHT_SEEK) {
         traceinfo.status = STOP;
         traceinfo.next_ray_type = select(SHADOW, LIGHT_FOUND, nearest_material == LIGHT);
@@ -306,6 +423,7 @@ struct TraceInfo intersect_scene(
 
     if(trace_depth >= MAX_TRACE_DEPTH-1) {
         traceinfo.status = STOP;
+        traceinfo.color = (color4)(0,0,0,0);
     }
 
     if(traceinfo.status == CONTINUE) {
@@ -371,49 +489,129 @@ kernel void generate_rays(
 kernel void update_scene(
     global float16 *scene_objects, 
     constant float3 *update_pos,
-    const int num_objects)
+    const int num_objects,
+    const int frame_num)
 {
     int i = get_global_id(0);
+
+    if(i > 0 && i < 7) {
+        return;
+    }
+
     if(i < num_objects) {
         unsigned int j = i * 2;
         float delta = 0.02f;
         scene_objects[j].s123 += clamp(sin(1.f/(scene_objects[j].s123)), -delta, delta);
+        //scene_objects[j].s1 += clamp(sin((float)frame_num), (float)-i, (float)i);
+        //scene_objects[j].s2 += clamp(tan((float)frame_num), -0.1f, 0.1f);
+        //scene_objects[j].s3 += clamp(cos((float)frame_num), -0.1f, 0.1f);
     }
 }
 
-color4 parse_color(struct TraceInfo *info, int size)
+color4 phong_illumination(struct TraceInfo *info, int i)
 {
-    for(int i = 0; i < size; i++) {
-        if(info[i].status == STOP) {
+    if(info[i].blocked) {
+        return (color4)(0,0,0,0);
+    }
+    float Ka = 0.25f;
+    float Kd = 0.55f;
+    float Ks = 0.2f;
+    float a = 12;
 
-            color4 light = info[i].color;
-            color4 acc = (color4)(0,0,0,0);
+    color4 Ia = info[i].color;
+    color4 Is = (color4)(1,1,1,1);
+    color4 Id = (color4)(1,1,1,1);
 
-            if(i > 0){
-                for(int j = i; j >= 0; j--) {
-                    if(info[j].next_ray_type == SHADOW) {
-                        continue;
-                    }
-                    if(info[j].blocked) {
-                        float m = 1.f;
-                        if(info[j].next_ray_type == REFLECT) {
-                            m = 0.75f;
-                        }
-                        acc += (m * (info[j].fade_amount * info[j].color) / (float)(i+1)) / 2.f;
-                    } else {
-                        float m = 1.f;
-                        if(info[j].next_ray_type == REFLECT) {
-                            m = 0.75f;
-                        }
-                        acc += m * (info[j].fade_amount * info[j].color) / (float)(i+1);
-                    }
-                }
-                return acc;
-            }
-            return light;
+    float L_dot_N = dot(info[i].light_dir, info[i].obj_normal);
+    float R_dot_V = dot(info[i].refl_dir, info[i].viewer_dir);
+
+    color4 Ip = Ka * Ia + ((Kd * L_dot_N * Id) + (Ks * pow(R_dot_V, a) * Is));
+    return Ip;
+}
+
+color4 parse_color(struct TraceInfo *info, int max_size)
+{                                                            
+    int trace_size = 1;
+    for(int i = 0; i < max_size; i++) {
+        if(info[i].status == STOP) {                                   
+            break;
+        }
+        trace_size++;
+    }
+
+    //int stop = 2;
+    //trace_size= trace_size > stop ? stop : trace_size;
+
+    //color4 acc = (color4)(0,0,0,0);
+    //float4 derp = smoothstep(0.f, 1.f, info[trace_size-2].light_arriving * 10000.f);
+    float4 derp = (color4)(1,1,1,1);
+    if(trace_size > 1) {
+        derp = clamp(sqrt(info[trace_size-2].light_arriving)*24.f, 0.f, 1.f);
+    }
+    color4 acc = (color4)(0,0,0,0);
+    //color4 acc = derp;
+    for(int i = 0; i < trace_size; i++) {
+        acc += info[i].color / (float)trace_size;
+        if(i == trace_size-1) {
+            acc *= derp;
         }
     }
-    return (float4)(0,1,0,1);
+//    for(int i = 0; i < trace_size; i++) {
+//        if(info[i].material == MATTE) {
+//            acc += phong_illumination(info, i);
+//        } else if(info[i].material == MIRROR) {
+//            //trace_size -= 1;
+//            //acc += info[i].color / (float)trace_size;
+//            //if(i == trace_size-1) {
+//            //    acc *= derp;
+//            //}
+//        } else if(info[i].material == LIGHT) { 
+//        }
+//    }
+
+//    for(int i = 0; i < max_size; i++) {
+//        if(info[i].status == STOP) {
+//
+//            color4 light = info[i].color;
+//            color4 acc = (color4)(0,0,0,0);
+//
+//            //color4 fade = smoothstep(0.f, 1.f, info[0].fade_amount * 5000);
+//            //color4 fade = smoothstep(0.f, 1.f, info[0].fade_amount * 1000);
+//            if(i > 0) {
+//                for(int j = i; j >= 0; j--) {
+//                    //color4 fade = clamp(info[j].fade_amount * 1000, 0.f, 1.f);
+//                    color4 fade = info[j].fade_amount;
+//                    //fade = length(info[j].fade_amount) > length(fade) ? info[j].fade_amount : fade;
+//                    float m = 1.0f;
+//
+//            
+//
+//                    if(info[j].next_ray_type == SHADOW) {
+//                        acc += 0.f / (float)(i+1);
+//                        continue;
+//                    } 
+//                    
+//                    else if(info[j].ray_type == REFLECT && 
+//                            info[j-1].next_ray_type == REFLECT) {
+//                        //acc += fade*((0.00 * info[j-1].color)+(1.0f * info[j].color)) / (float)(i+1);
+//                        //acc += fade*(info[j].color) / (float)(i+1);
+//                        
+//                        //acc = (color4)(0,0,0,0);
+//                        continue;
+//                    } 
+//
+//                    else {
+//                        acc += (info[j].color) / (float)(i+1);
+//                        //acc = (color4)(0,1,0,0);
+//                        //acc *= fade;
+//                    }
+//                }
+//                return acc;
+//            }
+//            return light;
+//        }
+//    }
+    return acc;
 }
 
 
@@ -458,7 +656,7 @@ kernel void trace_rays(
         }
 
         color4 color = parse_color(traceinfo, MAX_TRACE_DEPTH);
-        //pixel_board[i] = color;
-        pixel_board[i] = smoothstep(0.f, 1.f, color);
+        pixel_board[i] = color;
+        //pixel_board[i] = smoothstep(0.f, 1.f, color);
     }
 }

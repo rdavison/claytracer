@@ -66,4 +66,12 @@ struct plane {
     float material_type;
 };
 
+struct box {
+    vec3 position;
+    vec3 vmin;
+    vec3 vmax;
+    color4 color;
+    float material_type;
+};
+
 #endif

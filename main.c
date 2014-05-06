@@ -13,6 +13,7 @@ int main(int argc, char *argv[])
 {
     //int width = 1440, height = 852;
     //int width = 320, height = 240;
+    //int width = 160, height = 120;
     int width = 640, height = 480;
     //int width = 1920, height = 1080;
     int recursion_depth = 1;
@@ -33,14 +34,14 @@ int main(int argc, char *argv[])
 
     // pixel board
     struct pixel *pixel_board;
-    for(int i = 0; i < 1500; i++) {
+    for(int i = 0; i < 500; i++) {
         if(gui_quit_pressed()) {
             break;
         }
 
         // get start time
         gettimeofday(&time_start, NULL);
-        time_print(&time_start);
+        //time_print(&time_start);
 
         renderer_render(&pixel_board);
         
@@ -63,11 +64,11 @@ int main(int argc, char *argv[])
 
         // get end time
         gettimeofday(&time_end, NULL);
-        time_print(&time_end);
+        //time_print(&time_end);
 
         // get time difference
         time_subtract(&time_diff, &time_end, &time_start);
-        printf("%d.%06d\n", (int)time_diff.tv_sec, (int)time_diff.tv_usec);
+        //printf("%d.%06d\n", (int)time_diff.tv_sec, (int)time_diff.tv_usec);
 
         SDL_RenderClear(gui.renderer);
         SDL_RenderCopy(gui.renderer, gui.texture, NULL, NULL);

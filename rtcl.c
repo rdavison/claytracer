@@ -145,7 +145,7 @@ void rtcl_copy_scene_to_device()
         .position = { -8.0f, 0.0f, 0.0f },
         .normal = {1.0f, 0.0f, 0.0f },
         .color = {1.0f, 0.5f, 0.0f, 1.0f },
-        .material_type = MIRROR
+        .material_type = MATTE
     };
 
     struct plane R = {
@@ -159,14 +159,14 @@ void rtcl_copy_scene_to_device()
         .position = { 0.0f, 8.0f, 0.0f },
         .normal = {0.0f, -1.0f, 0.0f },
         .color = {1.0f, 1.0f, 0.0f, 1.0f },
-        .material_type = MIRROR
+        .material_type = MATTE
     };
 
     struct plane F = {
-        .position = { 0.0f, 0.0f, 2.0f },
+        .position = { 0.0f, 0.0f, 3.0f },
         .normal = {0.0f, 0.0f, -1.0f },
         .color = {0.0f, 0.0f, 1.0f, 1.0f },
-        .material_type = MIRROR
+        .material_type = MATTE
     };
 
     struct plane B = {
@@ -176,23 +176,39 @@ void rtcl_copy_scene_to_device()
         .material_type = MIRROR
     };
 
+    //struct box BOX = {
+    //    .position = { 3.0f, 0.0f, -10.0f },
+    //    .vmin = { 2.0f, -2.0f, -9.0f },
+    //    .vmax = { 3.0f, -1.0f, -10.0f },
+    //    .color = {1.0f, 1.0f, 0.0f, 1.0f },
+    //    .material_type = MIRROR
+    //};
+
     struct sphere light = {
-        .position = { 0.0f, 0.0f, -25.0f },
-        .radius = 2.f,
+        .position = { 0.0f, 0.0f, -10.0f },
+        .radius = 0.01f,
         .color = { 1.0f, 1.0f, 1.0f, 1.0f },
         .material_type = LIGHT
     };
 
+    //struct plane light = {
+    //    .position = { 0.0f, 10.0f, -28.0f },
+    //    .normal = { 0.0f, -0.209529f, 0.977802f },
+    //    .color = { 1.0f, 1.0f, 1.0f, 1.0f },
+    //    .material_type = LIGHT
+    //};
+
     struct sphere ball = {
         .position = { -1.5f, 0.0f, -4.0f },
         .radius = 1.f,
-        .color = { 1.0f, 1.0f, 1.0f, 1.0f },
+        .color = { 0.0f, 0.0f, 0.0f, 1.0f },
         .material_type = MIRROR
     };
 
     struct llist *llist = (struct llist *)calloc(1, sizeof(struct llist));
     struct sphere *spheres = (struct sphere *)calloc(rtcl.num_scene_objects-1, sizeof(struct sphere));
     llist_append(llist, compile_sphere(&light));
+    //llist_append(llist, compile_plane(&light));
     llist_append(llist, compile_plane(&U));
     llist_append(llist, compile_plane(&R));
     llist_append(llist, compile_plane(&F));
@@ -200,6 +216,7 @@ void rtcl_copy_scene_to_device()
     llist_append(llist, compile_plane(&D));
     llist_append(llist, compile_plane(&B));
     llist_append(llist, compile_sphere(&ball));
+    //llist_append(llist, compile_box(&BOX));
     for(int i = 0; i < rtcl.num_scene_objects-1; i++) {
         float x, y, z, r, g, b, d;
         x = (float)rand() / (float)RAND_MAX;
@@ -216,9 +233,9 @@ void rtcl_copy_scene_to_device()
         spheres[i].radius = 1.f;
         //spheres[i].material_type = (float)rand() / (float)RAND_MAX < 0.5 ? MATTE : MIRROR;
         spheres[i].material_type = MIRROR;
-        spheres[i].color.s[0] = spheres[i].material_type == MIRROR ? 1 : r;
-        spheres[i].color.s[1] = spheres[i].material_type == MIRROR ? 1 : g;
-        spheres[i].color.s[2] = spheres[i].material_type == MIRROR ? 1 : b;
+        spheres[i].color.s[0] = spheres[i].material_type == MIRROR ? 0 : r;
+        spheres[i].color.s[1] = spheres[i].material_type == MIRROR ? 0 : g;
+        spheres[i].color.s[2] = spheres[i].material_type == MIRROR ? 0 : b;
         spheres[i].color.s[3] = 1.0f;
         llist_append(llist, compile_sphere(spheres + i));
     }
@@ -391,30 +408,34 @@ void rtcl_trace_rays_kernel_init(const struct ray *rays, int num_rays, int rays_
     free(h_pixel_board);
 }
 
+static int frame = 0;
 void rtcl_update_scene()
 {
     rtcl_select_kernel("update_scene");
 
-    cl_float3 *new_positions = (cl_float3 *)malloc(sizeof(cl_float3) * rtcl.num_scene_objects);
-    for(int i = 0; i < rtcl.num_scene_objects; i++) {
-        new_positions->s[0] = rand() % 2 == 0 ? -0.1 : 0.1f; //((float)rand() / (float)RAND_MAX) * 2.f - 1.f;
-        new_positions->s[1] = rand() % 2 == 0 ? -0.1 : 0.1f; //((float)rand() / (float)RAND_MAX) * 2.f - 1.f;
-        new_positions->s[2] = -0.1; //((float)rand() / (float)RAND_MAX) * 2.f - 1.f;
-    }
+    //cl_float3 *new_positions = (cl_float3 *)malloc(sizeof(cl_float3) * rtcl.num_scene_objects);
+    //for(int i = 0; i < rtcl.num_scene_objects; i++) {
+    //    new_positions->s[0] = rand() % 2 == 0 ? -0.1 : 0.1f; //((float)rand() / (float)RAND_MAX) * 2.f - 1.f;
+    //    new_positions->s[1] = rand() % 2 == 0 ? -0.1 : 0.1f; //((float)rand() / (float)RAND_MAX) * 2.f - 1.f;
+    //    new_positions->s[2] = -0.1; //((float)rand() / (float)RAND_MAX) * 2.f - 1.f;
+    //}
 
-    err = clEnqueueWriteBuffer(rtcl.commands, buffers.scene_update_positions, CL_TRUE, 0, sizeof(cl_float3) * rtcl.num_scene_objects, new_positions, 0, NULL, NULL);
+    //err = clEnqueueWriteBuffer(rtcl.commands, buffers.scene_update_positions, CL_TRUE, 0, sizeof(cl_float3) * rtcl.num_scene_objects, new_positions, 0, NULL, NULL);
     
 
     err = 0;
     err |= clSetKernelArg(rtcl.kernel, 0, sizeof(buffers.scene_buffer), &buffers.scene_buffer);
     err |= clSetKernelArg(rtcl.kernel, 1, sizeof(buffers.scene_update_positions), &buffers.scene_update_positions);
     err |= clSetKernelArg(rtcl.kernel, 2, sizeof(rtcl.num_scene_objects), &rtcl.num_scene_objects);
+    err |= clSetKernelArg(rtcl.kernel, 3, sizeof(frame), &frame);
     if(err != CL_SUCCESS) {
         printf( "Error: Failed to set kernel arguments! %d\n", err);
         exit(1);
     }
 
-    free(new_positions);
+    frame++;
+
+    //free(new_positions);
 }
 
 void rtcl_read_pixel_board(struct pixel **pixel_board)
