@@ -3,6 +3,8 @@ claytracer
 
 My experiments using OpenCL to build a ray tracer.
 
+Dependencies: SDL2 http://www.libsdl.org/download-2.0.php
+
 *OS X Compile*
 
     clang -o claytracer --std=c11 -framework OpenCL -framework SDL2 *.c
