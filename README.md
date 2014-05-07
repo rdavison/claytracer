@@ -13,6 +13,7 @@ My experiments using OpenCL to build a ray tracer.
 TODO List
 =========
 
+* Massive code refactor / cleanup required soon to clean out the spaghetti code!!!
 * Figure out why SDL2 sometimes does not register events while rendering. I need to investigate Multithreading the gui.
 * Fix the warping of the image <s>near the edges of the screen</s> when objects are at high viewing angles and the aspect ratio isn't 1:1.
 * Allow variable amount of lights in the scene.
