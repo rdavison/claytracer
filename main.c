@@ -12,13 +12,13 @@
 int main(int argc, char *argv[])
 {
     //int width = 1440, height = 852;
-    int width = 320, height = 320;
+    //int width = 320, height = 320;
     //int width = 160, height = 120;
-    //int width = 640, height = 480;
-    //int width = 1920, height = 1080;
+    int width = 640, height = 640;
+    //int width = 1440, height = 1440;
     int recursion_depth = 1;
     int pitch = 4;
-    int scale = 4;
+    int scale = 1;
     int renderer_flags = RENDERER_USE_OPENCL_RENDERER;
 
     struct timeval time_start;

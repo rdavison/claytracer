@@ -18,7 +18,7 @@ void rtcl_init(struct renderer *renderer)
     srand(time(NULL));
 
     strcpy(rtcl.kernel_name, "INVALID");
-    rtcl.num_scene_objects = 31;
+    rtcl.num_scene_objects = 301;
     rtcl.recursion_depth = 5;
     rtcl.renderer = renderer;
     rtcl.num_pixels = renderer->width * renderer->height;
@@ -191,12 +191,12 @@ void rtcl_copy_scene_to_device()
         .material_type = LIGHT
     };
 
-    //struct plane light = {
-    //    .position = { 0.0f, 10.0f, -28.0f },
-    //    .normal = { 0.0f, -0.209529f, 0.977802f },
-    //    .color = { 1.0f, 1.0f, 1.0f, 1.0f },
-    //    .material_type = LIGHT
-    //};
+    struct plane light_plane = {
+        .position = { 0.0f, 10.0f, -28.0f },
+        .normal = { 0.0f, -0.209529f, 0.977802f },
+        .color = { 1.0f, 1.0f, 1.0f, 1.0f },
+        .material_type = LIGHT
+    };
 
     struct sphere ball = {
         .position = { -1.5f, 0.0f, -4.0f },
@@ -207,8 +207,8 @@ void rtcl_copy_scene_to_device()
 
     struct llist *llist = (struct llist *)calloc(1, sizeof(struct llist));
     struct sphere *spheres = (struct sphere *)calloc(rtcl.num_scene_objects-1, sizeof(struct sphere));
-    llist_append(llist, compile_sphere(&light));
-    //llist_append(llist, compile_plane(&light));
+    //llist_append(llist, compile_sphere(&light));
+    llist_append(llist, compile_plane(&light_plane));
     llist_append(llist, compile_plane(&U));
     llist_append(llist, compile_plane(&R));
     llist_append(llist, compile_plane(&F));

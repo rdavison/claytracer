@@ -38,7 +38,26 @@ int gui_destroy()
 }
 
 bool gui_quit_pressed() {
-    SDL_Event e;
-    SDL_PollEvent(&e);
-    return e.type == SDL_QUIT;
+    SDL_Event event;
+    SDL_PollEvent(&event);
+    switch(event.type) {
+
+    case SDL_WINDOWEVENT:
+        switch(event.window.event) {
+
+        case SDL_WINDOWEVENT_ENTER:
+            printf("entered\n");
+            break;
+
+        case SDL_WINDOWEVENT_LEAVE:
+            printf("left\n");
+            break;
+        }
+        break;
+
+    case SDL_KEYDOWN:
+        printf("key pressed: %d\n", event.key.keysym.sym);
+        break;
+    }
+    return event.type == SDL_QUIT;
 }

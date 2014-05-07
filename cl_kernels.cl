@@ -10,20 +10,6 @@
 //////////////////////////////////////////////////////////////////////////////
 
 
-struct Intersection intersect_cube(
-    constant float16 *scene,
-    int obj_index,
-    float3 ray_pos, 
-    float3 ray_dir,
-    float max_t)
-{
-    struct Intersection jieguo;
-    //
-    // TODO
-    //
-    return jieguo;
-}
-
 struct Intersection intersect_box(
     constant float16 *scene,
     int obj_index,
@@ -500,8 +486,10 @@ kernel void update_scene(
     }
 
     if(i < num_objects) {
+        int sign = 1.f;
         unsigned int j = i * 2;
         float delta = sin((float)frame_num/4.f)/4.f;
+        delta = i % 2 == 0 ? delta : -delta;
         scene_objects[j].s1 += delta;
         //scene_objects[j].s123 += clamp(sin(1.f/(scene_objects[j].s123)), -delta, delta);
         //scene_objects[j].s1 += clamp(sin((float)frame_num), (float)-i, (float)i);
