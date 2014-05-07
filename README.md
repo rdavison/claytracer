@@ -3,7 +3,8 @@ claytracer
 
 My experiments using OpenCL to build a ray tracer.
 
-Dependencies: SDL2 http://www.libsdl.org/download-2.0.php
+* Dependencies: SDL2 http://www.libsdl.org/download-2.0.php
+* YouTube demo (as of 2014.5.7): http://youtu.be/tiJtqLTerPE
 
 *OS X Compile*
 
